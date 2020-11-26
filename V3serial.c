@@ -1,51 +1,63 @@
-//programm that will take CSC struct and calculate the amount of triangles for each node
+/**
+ * This program takes a CSC structure and calculates the amount of triangles for each node.
+**/
+
 #include <stdio.h>
 #include "test.c"
+#include <stdbool.h>
 
 
-/**  The function below takes as paramateres a matrix in CSC format, a specific value (wanted_element) and a specific column number(colnum).
- *  It decides whether this column has this specific element or not. This is useful in deciding whether a A[k][i] !=0 and calculating the number of 
- *  triangles adjacent to each node.-
- * 
- * */
+/**
+ * Function that checks whether a specific column of the matrix (colNum) has an element in a specific row (wantedRow)
+ * Inputs:
+ *      int* rowVector: the row indices array of the csc format
+ *      int* colVector: the column changes array of the csc format
+ *      int colNum: the index of the column we want to examine
+ *      int wantedRow: the index of the row that we want our element to belong to
+ * Outputs:
+ *      int check: 1 if there is an element in (wanted row, colNum), 0 otherwise
+ **/
 
-int elementincolumncheck(int row_vector[],int col_vector[], int colnum, int wanted_element){
-    int check=0;
-    int col_length=col_vector[colnum +1]-col_vector[colnum];
-    for (int i=0; i<col_length; i++){
-        if (row_vector[col_vector[colnum] +i] == wanted_element )
-        check =1;
+bool elementInColumnCheck(int* rowVector,int* colVector, int colNum, int wantedRow){
+    bool check = false;
+    int colLength=colVector[colNum +1]-colVector[colNum];
+    for (int i=0; i<colLength; i++){
+        if (rowVector[colVector[colNum]+i] == wantedRow){
+            check = true;
+        }
     }
     return check;
 }
 
-
 int main(int argc, char* argv[]){
-
     
-    FILE *stream;       //creating the stream struct
-    MM_typecode t;     //creating the typecode struct
+    FILE *stream;       //file pointer to read the given file
+    MM_typecode t;      //the typecode struct
     
     if(argc<2){
         printf("Please pass as argument the .mtx file\n");
         exit(0);
     }  
+
     char* s=argv[1];
 
-    int a=strlen(s);        //checking if the argument is .mtx file
-    if(!( (s[a-1]=='x') && (s[a-2]=='t') && (s[a-3]=='m') && (s[a-4]=='.') )){
+    //Checking if the argument is .mtx file
+    int nameLength = strlen(s);    //length of the name of the file    
+    if(!((s[nameLength-1]=='x') && (s[nameLength-2]=='t') && (s[nameLength-3]=='m') && (s[nameLength-4]=='.'))){
         printf("Your argument is not an .mtx file\n");
         exit(0);
     }
 
-    stream=fopen(s, "r");        //opening The file as shown in the command line
+    //Opening The file as shown in the command line
+    stream=fopen(s, "r");        
     if(stream==NULL){
-        printf("could not open file, pass another one\n");
+        printf("Could not open file, pass another file\n");
         exit(0);
     }
+
     mm_read_banner(stream,&t);
 
-    //checking if the matrix type is ok
+    //Checking if the matrix type is ok
     if (mm_is_sparse(t)==0){
         printf("The array is not sparce. Please give me another matrix market file\n");
         exit(0);
@@ -59,54 +71,54 @@ int main(int argc, char* argv[]){
         exit(0);
     }
 
+    CSCArray* cscArray = COOtoCSC(stream);  //The sparse array in csc format
+    
+    int* rowVector = cscArray->rowVector;
+    int* colVector = cscArray->colVector;
+    int M = cscArray->M;
 
-    CSCArray* a1=COOtoCSC(stream);
-    CSCArray* a2=getCSC(a1);        //The full array in CSC
+    int elemsInCol;                                 //Number on nonzero elements in a particular column
+    int* triangleCount = calloc(M, sizeof(int));    //Each entry contains the number of triangles in which at least an element of this column belongs to
     
-    
-    int col_length;
-    int trianglecount[a2->M];
-    for (int i=0; i<a2->M; i++){        //filling with zeros
-        trianglecount[i]=0;
-    }
-    
-    int element1;
-    int element2;
+    int element1;   //First common we investigate
+    int element2;   //Second common indice we investigate
 
-    for(int i=0; i<a2->M; i++){         //Check for every column
-    col_length=a2->colvector[i +1]-a2->colvector[i];
-        for(int j=0; j<col_length; j++){        //Check for every pair of the column
-            for (int k=1; k< col_length-j; k++ ){
-                element1= a2->rowvector[a2->colvector[i] +j];
-                element2= a2->rowvector[a2->colvector[i] +j+k];
-                
-                if (element1>i){            //statement so that we dont compute tha same triangle more than once
-                    if (elementincolumncheck(a2->rowvector, a2->colvector, element1, element2 ) >0){
-                        trianglecount[element1]++;
-                        trianglecount[element2]++;
-                        trianglecount[i]++;
+    //Loop that checks for triangles
+    //Check for every column
+    for(int i=0; i<M; i++){
+        elemsInCol = colVector[i+1]- colVector[i];
+        //Check for every pair of the column with this double for loop
+        for(int j=0; j<elemsInCol; j++){
+            element1 = rowVector[colVector[i]+j];
+            for (int k=1; k<elemsInCol-j; k++ ){
+                element2 = rowVector[colVector[i]+j+k];
+                //Check so that we dont compute tha same triangle more than once
+                if (element1>i){            
+                    //Check if the third common indice exists
+                    if (elementInColumnCheck(rowVector, colVector, element1, element2)){
+                        triangleCount[element1]++;
+                        triangleCount[element2]++;
+                        triangleCount[i]++;
                     }
-                }   
-                
-                
+                }      
             }
         }  
     }
 
-    
-    int M=a2->M;
-    CSCArrayfree(a2);
-    free(a2);
+    CSCArrayfree(cscArray);
+    free(cscArray);
 
-    int total_triangle_num=0;
+    int totalTriangles=0; //Total number of triangles
+
+    //Compute the total number of triangles
     for (int i=0; i<M; i++){
-        printf("to trianglecount ine %d\n",trianglecount[i]);
-        total_triangle_num=total_triangle_num+trianglecount[i];
+        printf("to trianglecount einai %d\n",triangleCount[i]);
+        totalTriangles += triangleCount[i];
     }
-    printf("to totaltrianglenum ine %d\n",total_triangle_num);
+    printf("Total triangles = %d\n",totalTriangles);
    
-
+    free(triangleCount);
+    
     return 0;
-
 }
 
