@@ -9,6 +9,7 @@
 
 /**
  * Function that checks whether a specific column of the matrix (colNum) has an element in a specific row (wantedRow)
+ * This is useful in deciding whether A[k][i] != 0 and calculating the number of triangles adjacen to each node
  * Inputs:
  *      int* rowVector: the row indices array of the csc format
  *      int* colVector: the column changes array of the csc format

@@ -179,10 +179,10 @@ CSCArray* COOtoCSC(FILE* stream){
     
     //Creating the CSCAraay to be returned
     CSCArray* retVal=malloc(sizeof(CSCArray));
-    retVal->colVector=colVector;
-    retVal->rowVector=rowVector;
+    retVal->colVector=finalColVector;
+    retVal->rowVector=finalRowVector;
     retVal->M=M;
-    retVal->nz=nz;    
+    retVal->nz=rowVectorCount;    
     
     return retVal;  
 }
