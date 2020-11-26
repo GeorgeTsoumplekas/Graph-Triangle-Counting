@@ -3,191 +3,186 @@
 #include <stdio.h>
 #include "mmio.c"
 #include <string.h>
+#include <math.h>
 
-/** Below are the type definition of a struct, which resembles the CSC data structure (but has no values vector because they are all=1)
- * There is also a function that frees the 2 dynamically allocated vectors of the structure.-
- * */
+/** 
+ * Type definition of a struct, which resembles the CSC data structure 
+ * (no values vector needed because all values are equal to 1)
+ **/
 
 typedef struct{            
-    int* rowvector;
-    int* colvector;
-    int nz;
-    int M;
+    int* rowVector;     //array containing the row indeices of each nonzero
+    int* colVector;     //array containing the index of the elements which start a column of the sparse matrix
+    int nz;             //number of nonzero elements
+    int M;              //number of columns (=number of rows because the matrix is square)
 } CSCArray;
 
-
+/**
+ * Function that frees the memory allocated for the rowVector and colVector of a specific CSCArray structure.
+ * Input:
+ *      CSCArray* arg: pointer to the CSCArray structure we want to examine
+ * Output:
+ *      None
+ **/
 void CSCArrayfree(CSCArray* arg){
-    free(arg->colvector);
-    free(arg->rowvector);
+    free(arg->colVector);
+    free(arg->rowVector);
 }
 
-
-
-
-/** The following function takes a FILE* associated with an mtx file (with the characteristics that are wanted in this project) and 
- * returns a CSC structure. The returned structure is only the lower triangular part of the symmetric matrix!!
- * There are other functions written in the same file that convert this CSC structure to a CSC structure of the complete matrix.-
- * */
+/**
+ * This function takes a FILE* associated with an mtx file (with the characteristics that are wanted in this project) and 
+ * returns a CSC structure. The .mtx file contains only the coordinates of the nonzero elements of the lower triangular matrix
+ * (because the matrix is symmetric). This function takes advantage of the symmetry of the matrix to create a CSC structure containing
+ * all the info needed for all nonzero elements of the matrix.
+ * Input:
+ *      FILE* stream: pointer to the .mtx file cointaining the info of the sparse matrix
+ * Output:
+ *      CSCArray* retVal: pointer to a CSCArray structure representing the sparse matrix in CSC format
+ **/
 
 CSCArray* COOtoCSC(FILE* stream){        
 
-    //aquiring data about the sizes
+    printf("started converting mtx file lower triangular CSC\n");
+    
+    //Aquiring data about the sizes
     int M,N,nz;
     
     mm_read_mtx_crd_size(stream, &M, &N, &nz);
 
-    //finding out how many digits the M number is comprised of (used to create the buffer)
+    //Finding out how many digits the M number is comprised of (used to create the buffer)
     int Mdigits=0;
-    int count=M;
-    while (count != 0) {
-        count /= 10;     // n = n/10
+    int digitCount=M;
+    while (digitCount !=0 ) {
+        digitCount /= 10;     // n = n/10
         ++Mdigits;
     }
 
-    
-    //doing the conversion
-    char buffer[Mdigits+1];        //buffer used to process the data from each line
-    int* colvector=malloc((M+1)*sizeof(int));         //vectors that comprise the data structure of the CSC format
-    colvector[0]=0;
-    int* rowvector=malloc(nz*sizeof(int));
+    char buffer[Mdigits+1];                     //buffer used to process the data from each line
+    int* colVector=malloc((M+1)*sizeof(int));   //index of the elements which start a column of A for the lower triangular part of the matrix
+    int* rowVector=malloc(nz*sizeof(int));      //row indices of each non zero element for the lower triangular part of the matrix
+    colVector[0]=0;         
 
-    int temp1,temp2,temp3;
-    int colcheck=M;      //the integer used to understand whether we have finished converting a column. The initial value is M(the biggest possible) 
-    int count2=0;           //counter that will resemble the number of values in each tested column
-    int colindex=1;         //integer used as the index for the filling of the colvector 
+    int rowIndiceRead;      //the row indice we read at each line of the .mtx file (first number on the line)
+    int colIndiceRead;      //the column indice we read at each line of the .mtx file (second number on the line)
+    int elemsUntilZeroCols; //temporarily store the number of elements up until the consecutive all-zero columns
+    int colCheck=M+1;       //the integer used to understand whether we have finished converting a column. Initialized with M+1 so that it doesn't go inside the if loop the first time
+    int lowerColElements=0; //how many nonzero elements we have in a specific column of the lower triangular matrix
+    int colIndex=1;         //integer used as the index for the filling of the colVector 
+    int upperColElements=0;  //how many nonzero elements we have in a specific column of the upper triangular matrix
+
+    //CHECK AN DOULEVEI SWSTA
+    int **upperVectors = malloc(M*sizeof(int*));       //array containing the row indices of each nonzero element in each column for the upper triangular matrix
     
+    //Creating the vectors for the upper triangular part of the matrix. The first element of each vector tells us the number of elements of the vector
+    for(int i=0; i<M; i++){     
+        upperVectors[i]=malloc(sizeof(int));
+        upperVectors[i][0]=1;  
+    }
    
-    for(int i=0; i<nz; i++){        //the loop that will fill out the vectors
+    //The loop that will fill out rowVector, colVector and upperVectors
+    for(int i=0; i<nz; i++){ 
+
         fscanf(stream,"%s",buffer);
-        temp1=atoi(buffer)-1;
+        rowIndiceRead=atoi(buffer)-1;
         fscanf(stream,"%s",buffer);
-        temp2=atoi(buffer)-1;
-        rowvector[i]=temp1;
+        colIndiceRead=atoi(buffer)-1;
+
+        //Check for nonzero elements in the main diagonal
+        if(rowIndiceRead == colIndiceRead){
+            printf("There are elements in the main diagonal. Please give me an mtx without elements in the diagonal.\n");
+            printf("The row of the first element in the diagonal is the %d\n",rowIndiceRead);
+            exit(0); //ISWS KALYTERA return NULL ??
+        }
+
+        rowVector[i]=rowIndiceRead;
         
-        if(colcheck<temp2){            //Statement that decides whether to fill out a value in the colvector or not
-            if(temp2-colcheck>1){       //Checking for the special event when one column has only elements equal to zero
-                temp3=colvector[colindex-1]+count2;
-                for (int k=0; k<(temp2-colcheck); k++){
-                    colvector[colindex]=temp3;
-                    colindex++;
+        if(colCheck<colIndiceRead){             //Check if the column indice we got is bigger than the previous column indice we examined
+            if(colIndiceRead-colCheck>1){       //Checking if one or more consecutive columns have only elements equal to zero
+                elemsUntilZeroCols = colVector[colIndex-1] + lowerColElements;
+                for (int k=0; k<(colIndiceRead-colCheck); k++){
+                    colVector[colIndex]=elemsUntilZeroCols;   //For all these all-zero columns put in the respective column array the value of the total elements up until that point
+                    colIndex++;
                 }
-                count2=0;
+                lowerColElements=0;
             }
-            else{
-            colvector[colindex]=colvector[colindex-1] + count2;
-            colindex++;
-            count2=0;
+            //If the current element is in a different column than the previous one
+            else{ 
+                colVector[colIndex]=colVector[colIndex-1] + lowerColElements;
+                colIndex++;
+                lowerColElements=0;
             }
         }
 
-        count2++;
-        colcheck=temp2;
+        lowerColElements++;
+        colCheck=colIndiceRead;
+
+        //Note: the equivalent of a csc down triangular matrix is a crs upper triangular matrix. This is why use the row indices here as column indices and vice versa.
+        upperVectors[rowIndiceRead][0]++;        //Increase the element counter of the vector of the specific column
+        upperVectors[rowIndiceRead]=realloc(upperVectors[rowIndiceRead], (upperVectors[rowIndiceRead][0])*sizeof(int));
+        upperColElements=upperVectors[rowIndiceRead][0];
+        upperVectors[rowIndiceRead][upperColElements-1]=colIndiceRead; //Add in upperVectors the symmetric element of the one we just read from the file stream
     }
-    colvector[colindex]=colvector[colindex-1]+count2;       
-    while(colindex<M){          //Filling the last values, in case there are only zero elements from one column one
-        colindex++;
-        colvector[colindex]=colvector[colindex-1];
+
+    //Last element of the colVector containing the number of elements of the down triangular matrix
+    colVector[colIndex]=colVector[colIndex-1]+lowerColElements;     
+
+    //Filling the last values, in case the last columns are all-zero columns 
+    while(colIndex<M){           
+        colIndex++;
+        colVector[colIndex]=colVector[colIndex-1];
     }  
-    
-    CSCArray* retval=malloc(sizeof(CSCArray));      //creating the value to be returned
-    retval->colvector=colvector;
-    retval->rowvector=rowvector;
-    retval->M=M;
-    retval->nz=nz;
-    free(stream);     
-    return retval;  
-}
 
+    free(stream);
 
-/** This function takes as a parameters the vectors of an Upper triangular CRS matrix and the number of a specific column. 
- * (eg if column_num==3 then we study the third column)
- *  It returns another vector, which tells us which rows of the CRS on this specific column are non zero. The first element of this array has the 
- * special property that it shows the number of the elements.
- * 
- * e.g. if retarray[0]=, retarray[1]=1 and retarray[3]=2, then we know that we have two non zero elements in the upper triangular part of this clumn of the array, 
- * that are in the second and third row
- * 
- * Useful when trying to calculate the CSC format of the full Matrix, but only have the lower triangular part.-
- * */
+    int* finalRowVector = malloc(2*nz*sizeof(int));     //row indices of each non zero element for the whole matrix
+    int rowVectorCount=0;                               //shows how many row indices we have added in the finalRowVector
+    int* finalColVector = malloc((M+1)*sizeof(int));    //index of the elements which start a column of the whole matrix
+    int colVectorCount=0;                               //number of nonzero elements in a particular column for the whole sparse matrix
+    int cscInitialColElems;                             //number of nonzero elements in the lower triangular part of the matrix
 
-int* non_zero_rows(int* row_vector, int* col_vector, int column_num){
-
-    int row_length;
-    int* retarray=malloc((column_num+1)*sizeof(int));       //Creating the returned value
-    int element_count=0;
-    
-    for( int i=0; i<column_num; i++){            //checking every row (number of rows=column_num)
-        row_length= row_vector[i+1]- row_vector[i];
-        for (int j=0; j<row_length; j++){
-            if( col_vector[row_vector[i] +j]==column_num){
-                element_count++;
-                retarray[element_count]=i;
-            }
-        }
-    }
-    
-    retarray[0]=element_count;
-    return retarray;
-}       
-
-
-/** Below is a function that takes the CSC structure that is created by the COOtoCSC function, which is the representation of a lower 
- * triangular matrix, and computes and returns the CSC of the complete matrix (including the symmetric/upper triangular part).-
- * */
-
-CSCArray* getCSC(CSCArray* csc_initial){
-    
-    int* rowvector_final=malloc(2*csc_initial->nz*sizeof(int));
-    int rowvector_count=0;
-    int* colvector_final=malloc((csc_initial->M+1) *sizeof(int));
-    int colvector_count=0;
-    int csc_initial_nonzerosnum;          //the number of non zero elements in every column of the initial lower triangular matrix
-    
-
-    int *upper_values;
-    
-    int* (*upper_nonzeros) (int row_vector[], int col_vector[], int column_num);        //using function pointer to use the upper_non_zeros function
-    upper_nonzeros=non_zero_rows;
-
-    for(int i=0; i<csc_initial->M; i++){        //doing the procedure for every column
+    //The loop that will fill out finalRowVector and finalColVector
+    for(int i=0; i<M; i++){
         
-        //getting the upper triangular values
-        upper_values=upper_nonzeros(csc_initial->colvector, csc_initial->rowvector, i);
-        if(upper_values[0]>0){
-            
-            for(int j=0; j<upper_values[0]; j++){
-                rowvector_final[rowvector_count]=upper_values[j+1];
-                rowvector_count ++;
-                colvector_count ++;
-            }
-            
-            
-        free(upper_values);
+        //Getting the values of the upper triangular half of the matrix
+        //Check for nonzero elements in the column
+        if(upperVectors[i][0]>1){
+            //Add these elements on the final row vector
+            for(int j=0; j<upperVectors[i][0] -1; j++){
+                finalRowVector[rowVectorCount] = upperVectors[i][j+1];
+                rowVectorCount ++;
+                colVectorCount ++;
+            }     
+            free(upperVectors[i]);
         }
-        
         else{
-            free(upper_values);
+            free(upperVectors[i]);
         }
 
-        //getting the lower triangular values
-        if(i<csc_initial->M-1){
-            csc_initial_nonzerosnum=csc_initial->colvector[i+1] - csc_initial->colvector[i];
-            for (int j=0; j< csc_initial_nonzerosnum; j++){             //getting the values from the lower triangular
-                rowvector_final[rowvector_count]=csc_initial->rowvector[csc_initial->colvector[i] +j];
-                rowvector_count ++;
-                colvector_count ++;
+        //Getting the values of the lower triangular half of the matrix
+        //Check for nonzero elements in the column
+        if(i<M-1){
+            cscInitialColElems=colVector[i+1] - colVector[i];
+            //Add these elements on the final row vector
+            for (int j=0; j< cscInitialColElems; j++){             
+                finalRowVector[rowVectorCount] = rowVector[colVector[i] +j];
+                rowVectorCount ++;
+                colVectorCount ++;
             }
         }
-        colvector_final[i+1]=colvector_final[i]+colvector_count;
-        colvector_count=0;
+        finalColVector[i+1] = finalColVector[i] + colVectorCount;
+        colVectorCount=0;
     }    
-    //filling the returned value and freeing the memory allocated by the initial CSC data structure
-    CSCArray* ret=malloc(sizeof(CSCArray));
-    ret->colvector=colvector_final;
-    ret->rowvector=rowvector_final;
-    ret->M=csc_initial->M;
-    ret->nz=rowvector_count;
-    CSCArrayfree(csc_initial);
-    free(csc_initial);
-    return ret;
+
+    free(upperVectors);
+    free(colVector);
+    free(rowVector);
+    
+    //Creating the CSCAraay to be returned
+    CSCArray* retVal=malloc(sizeof(CSCArray));
+    retVal->colVector=colVector;
+    retVal->rowVector=rowVector;
+    retVal->M=M;
+    retVal->nz=nz;    
+    
+    return retVal;  
 }
