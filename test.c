@@ -124,7 +124,8 @@ CSCArray* COOtoCSC(FILE* stream){
     }
 
     //Last element of the colVector containing the number of elements of the down triangular matrix
-    colVector[colIndex]=colVector[colIndex-1]+lowerColElements;     
+    colVector[colIndex]=colVector[colIndex-1]+lowerColElements;  
+
 
     //Filling the last values, in case the last columns are all-zero columns 
     while(colIndex<M){           
@@ -134,9 +135,9 @@ CSCArray* COOtoCSC(FILE* stream){
 
     free(stream);
 
-    int* finalRowVector = malloc(2*nz*sizeof(int));     //row indices of each non zero element for the whole matrix
+    int* finalRowVector = calloc(2*nz,sizeof(int));     //row indices of each non zero element for the whole matrix
     int rowVectorCount=0;                               //shows how many row indices we have added in the finalRowVector
-    int* finalColVector = malloc((M+1)*sizeof(int));    //index of the elements which start a column of the whole matrix
+    int* finalColVector = calloc((M+1),sizeof(int));    //index of the elements which start a column of the whole matrix
     int colVectorCount=0;                               //number of nonzero elements in a particular column for the whole sparse matrix
     int cscInitialColElems;                             //number of nonzero elements in the lower triangular part of the matrix
 
@@ -171,7 +172,7 @@ CSCArray* COOtoCSC(FILE* stream){
         }
         finalColVector[i+1] = finalColVector[i] + colVectorCount;
         colVectorCount=0;
-    }    
+    }  
 
     free(upperVectors);
     free(colVector);
