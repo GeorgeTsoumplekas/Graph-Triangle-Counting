@@ -25,6 +25,10 @@ bool elementInColumnCheck(int* rowVector,int* colVector, int colNum, int wantedR
     for (int i=0; i<colLength; i++){
         if (rowVector[colVector[colNum]+i] == wantedRow){
             check = true;
+            break;
+        }
+        if(rowVector[colVector[colNum]+i] > wantedRow){
+            break;
         }
     }
     return check;
@@ -116,8 +120,8 @@ int main(int argc, char* argv[]){
         printf("to trianglecount einai %d\n",triangleCount[i]);
         totalTriangles += triangleCount[i];
     }
-    printf("Total triangles = %d\n",totalTriangles);
-   
+    printf("Total triangles = %d\n", totalTriangles);
+
     free(triangleCount);
     
     return 0;
