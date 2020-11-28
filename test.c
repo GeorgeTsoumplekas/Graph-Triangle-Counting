@@ -60,7 +60,17 @@ CSCArray* COOtoCSC(FILE* stream){
     char buffer[Mdigits+1];                     //buffer used to process the data from each line
     int* colVector=malloc((M+1)*sizeof(int));   //index of the elements which start a column of A for the lower triangular part of the matrix
     int* rowVector=malloc(nz*sizeof(int));      //row indices of each non zero element for the lower triangular part of the matrix
-    colVector[0]=0;         
+    colVector[0]=0; 
+
+    if(colVector==NULL){
+        printf("Error in COOtoCSC: Couldn't allocate memory for colVector");
+        exit(-1);
+    }
+
+    if(rowVector==NULL){
+        printf("Error in COOtoCSC: Couldn't allocate memory for rowVector");
+        exit(-1);
+    }        
 
     int rowIndiceRead;      //the row indice we read at each line of the .mtx file (first number on the line)
     int colIndiceRead;      //the column indice we read at each line of the .mtx file (second number on the line)
@@ -70,12 +80,20 @@ CSCArray* COOtoCSC(FILE* stream){
     int colIndex=1;         //integer used as the index for the filling of the colVector 
     int upperColElements=0;  //how many nonzero elements we have in a specific column of the upper triangular matrix
 
-    //CHECK AN DOULEVEI SWSTA
     int **upperVectors = malloc(M*sizeof(int*));       //array containing the row indices of each nonzero element in each column for the upper triangular matrix
     
+    if(upperVectors==NULL){
+        printf("Error in COOtoCSC: Couldn't allocate memory for upperVectors");
+        exit(-1);
+    }
+
     //Creating the vectors for the upper triangular part of the matrix. The first element of each vector tells us the number of elements of the vector
     for(int i=0; i<M; i++){     
         upperVectors[i]=malloc(sizeof(int));
+        if(upperVectors[i]==NULL){
+            printf("Error in COOtoCSC: Couldn't allocate memory for upperVectors[%d]", i);
+            exit(-1);
+        }
         upperVectors[i][0]=1;  
     }
    
@@ -91,7 +109,7 @@ CSCArray* COOtoCSC(FILE* stream){
         if(rowIndiceRead == colIndiceRead){
             printf("There are elements in the main diagonal. Please give me an mtx without elements in the diagonal.\n");
             printf("The row of the first element in the diagonal is the %d\n",rowIndiceRead);
-            exit(0); //ISWS KALYTERA return NULL ??
+            exit(-1);
         }
 
         rowVector[i]=rowIndiceRead;
@@ -119,6 +137,10 @@ CSCArray* COOtoCSC(FILE* stream){
         //Note: the equivalent of a csc down triangular matrix is a crs upper triangular matrix. This is why use the row indices here as column indices and vice versa.
         upperVectors[rowIndiceRead][0]++;        //Increase the element counter of the vector of the specific column
         upperVectors[rowIndiceRead]=realloc(upperVectors[rowIndiceRead], (upperVectors[rowIndiceRead][0])*sizeof(int));
+        if(upperVectors[rowIndiceRead]==NULL){
+            printf("Error in COOtoCSC: Couldn't reallocate memory for upperVectors[%d]", rowIndiceRead);
+            exit(-1);
+        }
         upperColElements=upperVectors[rowIndiceRead][0];
         upperVectors[rowIndiceRead][upperColElements-1]=colIndiceRead; //Add in upperVectors the symmetric element of the one we just read from the file stream
     }
@@ -140,6 +162,16 @@ CSCArray* COOtoCSC(FILE* stream){
     int* finalColVector = calloc((M+1),sizeof(int));    //index of the elements which start a column of the whole matrix
     int colVectorCount=0;                               //number of nonzero elements in a particular column for the whole sparse matrix
     int cscInitialColElems;                             //number of nonzero elements in the lower triangular part of the matrix
+
+    if(finalRowVector==NULL){
+        printf("Error in COOtoCSC: Couldn't allocate memory for finalRowVector");
+        exit(-1);
+    }
+
+    if(finalColVector==NULL){
+        printf("Error in COOtoCSC: Couldn't allocate memory for finalColVector");
+        exit(-1);
+    }
 
     //The loop that will fill out finalRowVector and finalColVector
     for(int i=0; i<M; i++){
@@ -180,6 +212,12 @@ CSCArray* COOtoCSC(FILE* stream){
     
     //Creating the CSCAraay to be returned
     CSCArray* retVal=malloc(sizeof(CSCArray));
+
+    if(retVal==NULL){
+        printf("Error in COOtoCSC: Couldn't allocate memory for retVal");
+        exit(-1);
+    }
+
     retVal->colVector=finalColVector;
     retVal->rowVector=finalRowVector;
     retVal->M=M;
