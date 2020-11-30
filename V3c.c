@@ -8,6 +8,7 @@
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h> 
 #include <pthread.h>
+#include <time.h>
 
 //Initialising 3 locks, so that I have one lock for every variable changes be the threads. If I had only one lock and excluded the three commands that 
 //change the variables in one excluded area, then the programm would be a little slower
@@ -115,7 +116,7 @@ int main(int argc, char* argv[]){
         exit(0);
     }
 
-        CSCArray* cscArray = COOtoCSC(stream);  //The sparse array in csc format
+    CSCArray* cscArray = COOtoCSC(stream);  //The sparse array in csc format
     int M = cscArray->M;
     int* rowVector = cscArray->rowVector;
     int* colVector = cscArray->colVector;
