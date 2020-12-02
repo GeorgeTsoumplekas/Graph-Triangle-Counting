@@ -223,7 +223,7 @@ int main(int argc, char* argv[]){
      * Parallelizing more than that is not efficient since we cannot have as many or more threads simultaneously than the number
      * of columns M of the matrix for big matrices. Trying to parallelize more only made the program run more slowly.
     **/
-    //#pragma cilk grainsize = 1
+    #pragma cilk grainsize = 1
     cilk_for (int i=0; i<M; i++){
         compute(colVector, rowVector, i, trianglesArray);
     }

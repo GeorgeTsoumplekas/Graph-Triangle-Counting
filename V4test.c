@@ -249,7 +249,7 @@ int main(int argc, char* argv[]){
     int totalTriangles=0;   //total number of triangles
 
     //Compute the total number of triangles. This is done by applying a reduction, so that it is computed faster
-    #pragma omp parallel for reduction (+:total_triangles)
+    #pragma omp parallel for reduction (+:totalTriangles)
     for (int i=0; i<M; i++){
         totalTriangles += trianglesArray[i];
     }
