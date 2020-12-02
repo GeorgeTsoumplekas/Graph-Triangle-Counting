@@ -272,7 +272,7 @@ int main(int argc, char* argv[]){
     for (int i=0; i<M; i++){
         totalTriangles += trianglesArray[i];
     }
-    printf("Total triangles = %d\n", totalTriangles);
+    printf("Total triangles = %d\n", totalTriangles/3);
     
     free(trianglesArray);
 
