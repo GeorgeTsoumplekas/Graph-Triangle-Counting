@@ -1,13 +1,13 @@
 /**
- * Parallel implementation of V4 using openCilk
+ * This program takes a CSC structure and calculates the amount of triangles for each node 
+ * implementing the serial version of V4 algorithm.
 **/
 
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "test.c"
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h> 
-#include <time.h>
+
 
 /**  
  *  Function that calculates the dot product between two columns.
@@ -42,12 +42,12 @@ int product(int* rowVector, int* colVector, int colNum1, int colNum2){
     
     int smallColIndex;  //the column index of the column that has fewer nonzero elements than the other
     int bigColIndex;    //the column index of the column that has more nonzero elements than the other
-    int initialLeft;    //initial left, the index in rowVector of the first nonzero element belonging in the "big" column
+    int initialLeft;   //initial left, the index in rowVector of the first nonzero element belonging in the "big" column
 
-    int left;           //first element of the sub-array in which we do our binary search
-    int right;          //last element of the sub-array in which we do our binary search
-    int middle;         //middle element in the binary search
-    int flag;           //flag activated when we find the element in the binary search algorithm
+    int left;       //first element of the sub-array in which we do our binary search
+    int right;      //last element of the sub-array in which we do our binary search
+    int middle;     //middle element in the binary search
+    int flag;
 
     int colLength1 = colVector[colNum1+1] - colVector[colNum1]; //number of nonzero elements in column with index colNum1
     int colLength2=colVector[colNum2+1] - colVector[colNum2];   //number of nonzero elements in column with index colNum2
@@ -115,39 +115,6 @@ int product(int* rowVector, int* colVector, int colNum1, int colNum2){
     return result;
 }
 
-/**
- * The function the different threads execute in parallel. 
- * This function calculates the number of triangles adjacent to a particular node i.
- * Using the same algorithm used in the main of V4s2.c but now only for a specific column i instead of all, we calculate the 
- * number of triangles adjacent to node i (column i).
- * Input:
- *      int* rowVector: the row indices array of the csc format
- *      int* colVector: the column changes array of the csc format
- *      int i: the index of the column (node) which we want to examine
- *      int* trianglesArray: array containing the number of triangles adjacent to each node i (M nodes in total)
- * Output:
- *      None
-**/
-
-void compute(int *colVector, int*rowVector, int i, int* trianglesArray){
-    
-    int productNum;     //the dot product of a particular row with a particular column of the matrix
-    int rowNum;         //the row index of the nonzero element we are examining
-
-    //Checking for each nonzero element of the column
-    for(int j=0; j<colVector[i+1]-colVector[i]; j++){        
-        rowNum = rowVector[colVector[i]+j];
-        //If this row contains only zeros, skip it. We take advantage of the fact that the row with index rowNum is the same with the column with index rowNum
-        if(colVector[rowNum+1]-colVector[rowNum] == 0){
-            continue;
-        }
-        productNum=product(rowVector, colVector, i, rowNum);
-        if(productNum>0){                   
-            trianglesArray[i] += productNum;
-        }
-    }
-    trianglesArray[i] /= 2;
-}
 
 
 int main(int argc, char* argv[]){
@@ -191,20 +158,28 @@ int main(int argc, char* argv[]){
         exit(-1);
     }
 
-    if(argc<3){
-        printf("Please give me the wanted number of threads as an argument too\n");
-        exit(-1);
-    }
+    CSCArray* cscArray = COOtoCSC(stream); //The sparse array in csc format
 
-    CSCArray* cscArray = COOtoCSC(stream);  //the sparse array in csc format
-    
-    int M = cscArray->M;                    //number of columns/rows of the sparse matrix
     int* rowVector = cscArray->rowVector;   //the row vector of the sparse matrix in the csc format
     int* colVector = cscArray->colVector;   //the column vector of the sparse matrix in the csc format
+    int M = cscArray->M;                    //number of columns/rows of the sparse matrix
 
-    int threadNum=atoi(argv[2]);    //number of threads
-    printf("\nYou have chosen %d threads \n",threadNum);
+    /**
+     * The following part of the code calculates the number of triangles adjacent to each node and ultimately the total number of triangles of the sparse matrix
+     * Algorithm works as it follows:
+     * First of all, we check where we have nonzero elements in A. Let's denote such an element with A[i][j]. Then we calculate the dot product of row with index i
+     * with the column of index j. That is because, in the rest of the positions of the matrix there is no need to calculate the dot product due to the fact that we
+     * will then multiply it with 0 (since we take the Hadamard product of A with AxA).
+     * Then, multiplication of c with vector e means that we end up with a Mx1 matrix where each row is the sum of the elements of the corresponding column.
+     * For this reason, in our algorithm, after we have computed the dot product of row j with column i we add this to trianglesArray[i].
+     * To compute the total number of triangles we have to add all triangles adjacent to each node i and then divide it by 3 because each triangle is calculated 3 times.
+    **/
 
+    int colLength;      //number of nonzero elements of a column
+    int rowNum;         //the row indice
+    int colNum;         //the column indice
+    int productNum;     //dot product of row with index rowNum with column with index colNum
+    
     int* trianglesArray=calloc(M, sizeof(int)); //array containing the number of triangles adjacent to each node i (M nodes in total)
     if(trianglesArray==NULL){
         printf("Error in main: Couldn't allocate memory for trianglesArray");
@@ -215,17 +190,22 @@ int main(int argc, char* argv[]){
     struct timespec init;
     clock_gettime(CLOCK_MONOTONIC, &init);
 
-    //Set number of threads
-    __cilkrts_set_param("nworkers",threadNum);
-
-    /**
-     * Execute compute function in parallel using a parallel for.
-     * Parallelizing more than that is not efficient since we cannot have as many or more threads simultaneously than the number
-     * of columns M of the matrix for big matrices. Trying to parallelize more only made the program run more slowly.
-    **/
-    //#pragma cilk grainsize = 1
-    cilk_for (int i=0; i<M; i++){
-        compute(colVector, rowVector, i, trianglesArray);
+    //Loop that calculates the number of triangles adjacent to each node
+    //Check for each column
+    for(int i=0; i<M; i++){ 
+        colLength = colVector[i+1] - colVector[i];
+        colNum=i;
+        //Checking for each nonzero element of the column
+        for(int j=0; j<colLength; j++){
+            rowNum = rowVector[colVector[i]+j];
+            //If this row contains only zeros, skip it. We take advantage of the fact that the row with index rowNum is the same with the column with index rowNum
+            if(colVector[rowNum+1]-colVector[rowNum] == 0){
+                continue;
+            }
+            productNum=product(rowVector, colVector, colNum, rowNum);
+            trianglesArray[i] += productNum;
+        }
+        trianglesArray[i] /= 2;
     }
 
     //End timer
@@ -245,18 +225,21 @@ int main(int argc, char* argv[]){
     }
     printf("The seconds elapsed are %d and the nanoseconds are %ld\n",seconds, ns);
 
-    int totalTriangles=0;   //total number of triangles
+    int totalTriangles=0; //total number of triangles
 
-    for (int i=0; i<M; i++){
+    //Calculate the total number of triangles
+    for(int i=0;i<M;++i){
         totalTriangles += trianglesArray[i];
     }
-    printf("Total triangles = %d\n", totalTriangles);
-    
+    totalTriangles /= 3;
+
     free(trianglesArray);
 
     free(colVector);
     free(rowVector);
     free(cscArray);
-    
+
+    printf("Total triangles = %d\n", totalTriangles);
+
     return 0;
 }
