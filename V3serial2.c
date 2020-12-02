@@ -1,16 +1,11 @@
 /**
- * Parallel implementation of V3 using openCilk and pthreads
+ * This program takes a CSC structure and calculates the amount of triangles for each node 
+ * implementing the serial version of V3 algorithm.
 **/
 
 #include <stdio.h>
 #include "test.c"
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h> 
-#include <pthread.h>
 #include <time.h>
-
-//Initializing a lock, for the variable changes made by the threads on the array containing the number of triangles for each node.
-pthread_mutex_t lockI=PTHREAD_MUTEX_INITIALIZER; 
 
 
 /**
@@ -50,46 +45,6 @@ int elementInColumnCheck(int* rowVector,int* colVector, int colNum, int wantedRo
     }
     return result;
 }
-
-/**
- * The function the different threads execute in parallel. 
- * This function calculates the number of triangles adjacent to a particular node i.
- * Algorithm works as follows: 
- * First of we take each pair of nonzero elements that belong in the same column i, let's say elements (j,i), (k,i). There is no need to check 
- * the pair (k,i), (j,i) since we would calculate the same triangle twice this way. So we examine only the cases where k>j.
- * If the element (j,k) is a non zero element then we have a triangle. We only increase the value of triangleCount[i] because if we increased
- * triangleCount[element1] and triangleCount[element2] we would add the same triangle three times instead of one.
- * Input:
- *      int* rowVector: the row indices array of the csc format
- *      int* colVector: the column changes array of the csc format
- *      int* triangleCount: the array containing the number of triangles adjacent to each node
- *      int i: the column index (also the node index) of which we want to compute the number of triangles
- * Output:
- *      None
-**/
-
-void compute(int* rowVector, int* colVector, int* triangleCount, int i){
-
-    int elemsInCol = colVector[i+1]- colVector[i];  //number of nonzero elements in column i
-
-    int element1;   //first common idice we investigate
-    int element2;   //second common indice we investigate
-
-    //Check for every pair of the column with this double for loop
-    for(int j=0; j<elemsInCol-1; j++){
-        element1 = rowVector[colVector[i]+j];
-        for (int k=j+1; k<elemsInCol; k++ ){
-            element2 = rowVector[colVector[i]+k];            
-            //Check if the third common indice exists
-            if (elementInColumnCheck(rowVector, colVector, element1, element2)>=0){
-                //pthread_mutex_lock(&lockI);
-                triangleCount[i]++;
-                //pthread_mutex_unlock(&lockI);
-            }
-        }      
-    }
-}
-
 
 int main(int argc, char* argv[]){
     
@@ -133,40 +88,48 @@ int main(int argc, char* argv[]){
         exit(-1);
     }
 
-    if(argc<3){
-        printf("Please give me the wanted number of threads as an argument too\n");
-        exit(-1);
-    }
-
     CSCArray* cscArray = COOtoCSC(stream);  //The sparse array in csc format
-    int M = cscArray->M;
+    
     int* rowVector = cscArray->rowVector;
     int* colVector = cscArray->colVector;
+    int M = cscArray->M;
 
+    int elemsInCol;                                 //Number on nonzero elements in a particular column
     int* triangleCount = calloc(M, sizeof(int));    //Each entry contains the number of triangles in which at least an element of this column belongs to
     if(triangleCount==NULL){
         printf("Error in main: Couldn't allocate memory for triangleCount");
         exit(-1);
-    }    
+    }     
 
-    char* threadNum=argv[2];    //number of threads
-    printf("\nYou have chosen %s threads \n",threadNum);
+    int element1;   //First common idice we investigate
+    int element2;   //Second common indice we investigate
 
     //Start timer
     struct timespec init;
-    clock_gettime(CLOCK_MONOTONIC, &init);
-
-    //Set number of threads
-    __cilkrts_set_param("nworkers",threadNum);
+    clock_gettime(CLOCK_MONOTONIC, &init); //CLOCK_MONOTONIC might appear underlined as undefined but it's not an actual problem
 
     /**
-     * Execute compute function in parallel using a parallel for.
-     * Parallelizing more than that is not efficient since we cannot have as many or more threads simultaneously than the number
-     * of columns M of the matrix for big matrices. Trying to parallelize more only made the program run more slowly.
+     * The following part of the code calculates the number of triangles adjacent to each node and ultimately the total number of triangles of the sparse matrix
+     * Algorithm works as follows:
+     * First of we take each pair of nonzero elements that belong in the same column i, let's say elements (j,i), (k,i). There is no need to check 
+     * the pair (k,i), (j,i) since we would calculate the same triangle twice this way. So we examine only the cases where k>j.
+     * If the element (j,k) is a non zero element then we have a triangle. We only increase the value of triangleCount[i] because if we increased
+     * triangleCount[element1] and triangleCount[element2] we would add the same triangle three times instead of one.
     **/
-    //#pragma cilk grainsize = 1
-    cilk_for (int i=0; i<M; i++){
-        compute(rowVector, colVector, triangleCount, i);
+
+    for(int i=0; i<M; i++){
+        elemsInCol = colVector[i+1]- colVector[i];
+        //Check for every pair of the column with this double for loop
+        for(int j=0; j<elemsInCol-1; j++){
+            element1 = rowVector[colVector[i]+j];
+            for (int k=j+1; k<elemsInCol; k++ ){
+                element2 = rowVector[colVector[i]+k];          
+                //Check if the third common indice exists
+                if (elementInColumnCheck(rowVector, colVector, element1, element2)>=0){
+                    triangleCount[i]++;
+                }      
+            }
+        }  
     }
 
     //End timer
@@ -189,18 +152,17 @@ int main(int argc, char* argv[]){
     CSCArrayfree(cscArray);
     free(cscArray);
 
-    int totalTriangles=0; //total number of triangles
-    
+    int totalTriangles=0; //Total number of triangles
+
     //Compute the total number of triangles
     for (int i=0; i<M; i++){
         totalTriangles += triangleCount[i];
     }
 
     //We divide the total number by 3 because now each triangle is added 3 times, 1 for each node in which it is adjacent
-    printf("Total triangles = %d\n",totalTriangles/3);
-   
+    printf("Total triangles = %d\n", totalTriangles/3);
+
     free(triangleCount);
     
     return 0;
 }
-

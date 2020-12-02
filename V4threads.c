@@ -1,13 +1,25 @@
 /**
- * Parallel implementation of V4 using openCilk
+ * Parallel implementation of V4 using pthreads
 **/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "test.c"
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h> 
+#include <pthread.h>
 #include <time.h>
+
+
+//the struct that will be used to pass arguments to the runner_compute function of the spawned threads.
+typedef struct{
+    int* colVector;     //the column vector of the sparse matrix in the csc format
+    int* rowVector;     //the row vector of the sparse matrix in the csc format
+    int* triangles;     //array containing the number of triangles adjacent to each node i (M nodes in total)
+    int M;              //number of columns/rows of the sparse matrix
+}pthreadArg;
+
+int i=-1;       //global variable that works as a counter to make sure runnerCompute is executed for each column of the matrix
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; //lock used to avoid data races on counter i and insure it increases correctly 
+
 
 /**  
  *  Function that calculates the dot product between two columns.
@@ -44,10 +56,10 @@ int product(int* rowVector, int* colVector, int colNum1, int colNum2){
     int bigColIndex;    //the column index of the column that has more nonzero elements than the other
     int initialLeft;    //initial left, the index in rowVector of the first nonzero element belonging in the "big" column
 
-    int left;           //first element of the sub-array in which we do our binary search
-    int right;          //last element of the sub-array in which we do our binary search
-    int middle;         //middle element in the binary search
-    int flag;           //flag activated when we find the element in the binary search algorithm
+    int left;       //first element of the sub-array in which we do our binary search
+    int right;      //last element of the sub-array in which we do our binary search
+    int middle;     //middle element in the binary search
+    int flag;       //flag activated when we find the element in the binary search algorithm
 
     int colLength1 = colVector[colNum1+1] - colVector[colNum1]; //number of nonzero elements in column with index colNum1
     int colLength2=colVector[colNum2+1] - colVector[colNum2];   //number of nonzero elements in column with index colNum2
@@ -118,35 +130,40 @@ int product(int* rowVector, int* colVector, int colNum1, int colNum2){
 /**
  * The function the different threads execute in parallel. 
  * This function calculates the number of triangles adjacent to a particular node i.
- * Using the same algorithm used in the main of V4s2.c but now only for a specific column i instead of all, we calculate the 
- * number of triangles adjacent to node i (column i).
+ * We use the global counter i to see if there are still columns which haven't been examined. If so we increase the counter
+ * (using a mutex so that there is not any data race) assign its value to a colNum variable and examine this column with index colNum
+ * Using the same algorithm used in the main of V4s2.c but now only for a specific column instead of all, we calculate the 
+ * number of triangles adjacent to node i (column colNum).
  * Input:
- *      int* rowVector: the row indices array of the csc format
- *      int* colVector: the column changes array of the csc format
- *      int i: the index of the column (node) which we want to examine
- *      int* trianglesArray: array containing the number of triangles adjacent to each node i (M nodes in total)
+ *      void* arg: pointer to a struct cointaining the actual arguments that we need to pass to runnerCompute
  * Output:
  *      None
 **/
 
-void compute(int *colVector, int*rowVector, int i, int* trianglesArray){
-    
-    int productNum;     //the dot product of a particular row with a particular column of the matrix
-    int rowNum;         //the row index of the nonzero element we are examining
+void* runnerCompute(void* arg){
+    pthreadArg* temp = (pthreadArg*)arg;    //getting the argument to a temporary-local variable
+    int colNum;                             //the column index (node) we are working with
+    int productNum;                         //the dot product of a particular row with a particular column of the matrix
 
-    //Checking for each nonzero element of the column
-    for(int j=0; j<colVector[i+1]-colVector[i]; j++){        
-        rowNum = rowVector[colVector[i]+j];
-        //If this row contains only zeros, skip it. We take advantage of the fact that the row with index rowNum is the same with the column with index rowNum
-        if(colVector[rowNum+1]-colVector[rowNum] == 0){
-            continue;
+    //Check if there are still columns to be examined
+    while(i<temp->M-1){
+        //Mutual exclusion, so that a proper index i is assigned to the each thread and there are no data races over i
+        pthread_mutex_lock(&lock);
+        i++;
+        colNum=i;
+        pthread_mutex_unlock(&lock);
+        if(colNum<temp->M){
+            //Checking for each nonzero element of the column
+            for(int j=0; j<temp->colVector[colNum+1]-temp->colVector[colNum]; j++){       
+                productNum = product(temp->rowVector, temp->colVector, temp->rowVector[temp->colVector[colNum]+j], colNum);
+                if(productNum>0){                   
+                    temp->triangles[colNum] += productNum;
+                }
+            }
         }
-        productNum=product(rowVector, colVector, i, rowNum);
-        if(productNum>0){                   
-            trianglesArray[i] += productNum;
-        }
+        temp->triangles[colNum] /= 2;
     }
-    trianglesArray[i] /= 2;
+    pthread_exit(NULL);
 }
 
 
@@ -215,37 +232,42 @@ int main(int argc, char* argv[]){
     struct timespec init;
     clock_gettime(CLOCK_MONOTONIC, &init);
 
-    //Set number of threads
-    __cilkrts_set_param("nworkers",threadNum);
+    pthread_t idVector[threadNum];                                  //vector containing the ids of the threads that are going to be created
+    pthreadArg arg={colVector, rowVector, trianglesArray, M};       //struct containing the arguments to be passed to runnerCompute by each thread. Each thread needs to pass the same arguments, so we declare it only once.
 
     /**
-     * Execute compute function in parallel using a parallel for.
+     * Create the threads and let them execute runnerCompute in parallel.
+     * The threads are probably going to be less than the number of columns of the matrix. That is why it is necessare to
+     * declare a global variable as a counter that increases each time runnerCompute is executed for a column up until runnerCompute has been executed for all columns M
      * Parallelizing more than that is not efficient since we cannot have as many or more threads simultaneously than the number
-     * of columns M of the matrix for big matrices. Trying to parallelize more only made the program run more slowly.
+     * of columns M of the matrix. Trying to parallelize more only made the program run more slowly.
     **/
-    //#pragma cilk grainsize = 1
-    cilk_for (int i=0; i<M; i++){
-        compute(colVector, rowVector, i, trianglesArray);
+
+    for(int i=0; i<threadNum; i++){
+        pthread_create(&idVector[i], NULL, runnerCompute, &arg);
+    }
+    
+    //After all work is done threads are joined back to the main thread
+    for(int i=0; i<threadNum; i++){
+        pthread_join(idVector[i], NULL);
     }
 
     //End timer
     struct timespec last;   
     clock_gettime(CLOCK_MONOTONIC, &last);
-
     long ns;
     int seconds;
     if(last.tv_nsec <init.tv_nsec){
         ns=init.tv_nsec - last.tv_nsec;
         seconds= last.tv_sec - init.tv_sec -1;
     }
-
     if(last.tv_nsec >init.tv_nsec){
         ns= last.tv_nsec -init.tv_nsec ;
         seconds= last.tv_sec - init.tv_sec ;
     }
     printf("The seconds elapsed are %d and the nanoseconds are %ld\n",seconds, ns);
 
-    int totalTriangles=0;   //total number of triangles
+    int totalTriangles=0;  //total number of triangles
 
     for (int i=0; i<M; i++){
         totalTriangles += trianglesArray[i];

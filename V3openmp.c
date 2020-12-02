@@ -1,17 +1,11 @@
 /**
- * Parallel implementation of V3 using openCilk and pthreads
+ * Parallel implementation of V3 using openMP
 **/
 
 #include <stdio.h>
 #include "test.c"
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h> 
-#include <pthread.h>
+#include <omp.h>
 #include <time.h>
-
-//Initializing a lock, for the variable changes made by the threads on the array containing the number of triangles for each node.
-pthread_mutex_t lockI=PTHREAD_MUTEX_INITIALIZER; 
-
 
 /**
  * Function that checks whether a specific column of the matrix (colNum) has an element in a specific row (wantedRow)
@@ -52,7 +46,7 @@ int elementInColumnCheck(int* rowVector,int* colVector, int colNum, int wantedRo
 }
 
 /**
- * The function the different threads execute in parallel. 
+ * The actual function the different threads execute in parallel. 
  * This function calculates the number of triangles adjacent to a particular node i.
  * Algorithm works as follows: 
  * First of we take each pair of nonzero elements that belong in the same column i, let's say elements (j,i), (k,i). There is no need to check 
@@ -69,7 +63,7 @@ int elementInColumnCheck(int* rowVector,int* colVector, int colNum, int wantedRo
 **/
 
 void compute(int* rowVector, int* colVector, int* triangleCount, int i){
-
+    
     int elemsInCol = colVector[i+1]- colVector[i];  //number of nonzero elements in column i
 
     int element1;   //first common idice we investigate
@@ -82,9 +76,7 @@ void compute(int* rowVector, int* colVector, int* triangleCount, int i){
             element2 = rowVector[colVector[i]+k];            
             //Check if the third common indice exists
             if (elementInColumnCheck(rowVector, colVector, element1, element2)>=0){
-                //pthread_mutex_lock(&lockI);
-                triangleCount[i]++;
-                //pthread_mutex_unlock(&lockI);
+                triangleCount[i]++;   
             }
         }      
     }
@@ -143,29 +135,31 @@ int main(int argc, char* argv[]){
     int* rowVector = cscArray->rowVector;
     int* colVector = cscArray->colVector;
 
-    int* triangleCount = calloc(M, sizeof(int));    //Each entry contains the number of triangles in which at least an element of this column belongs to
+    int* triangleCount = calloc(cscArray->M, sizeof(int));    //Each entry contains the number of triangles in which at least an element of this column belongs to
     if(triangleCount==NULL){
         printf("Error in main: Couldn't allocate memory for triangleCount");
         exit(-1);
-    }    
+    }
 
-    char* threadNum=argv[2];    //number of threads
-    printf("\nYou have chosen %s threads \n",threadNum);
+    int threadNum = atoi(argv[2]);  //number of threads
+    printf("\nYou have chosen %d threads \n",threadNum);
 
     //Start timer
     struct timespec init;
     clock_gettime(CLOCK_MONOTONIC, &init);
 
     //Set number of threads
-    __cilkrts_set_param("nworkers",threadNum);
+    omp_set_num_threads(threadNum);
 
     /**
-     * Execute compute function in parallel using a parallel for.
-     * Parallelizing more than that is not efficient since we cannot have as many or more threads simultaneously than the number
-     * of columns M of the matrix for big matrices. Trying to parallelize more only made the program run more slowly.
-    **/
-    //#pragma cilk grainsize = 1
-    cilk_for (int i=0; i<M; i++){
+     * Execute compute function in parallel using a parallel for. Scheduling is set to dynamic for faster results since there is no need
+     * for the treads to be executed in a certain order.
+     * Moreover, parallelizing more than that is not efficient since we cannot have as many or more threads simultaneously than the number
+     * of columns M of the matrix. Trying to parallelize more only made the program run more slowly.
+    **/ 
+
+    #pragma omp parallel for schedule(dynamic)
+    for(int i=0; i<M; i++){
         compute(rowVector, colVector, triangleCount, i);
     }
 
@@ -189,9 +183,10 @@ int main(int argc, char* argv[]){
     CSCArrayfree(cscArray);
     free(cscArray);
 
-    int totalTriangles=0; //total number of triangles
-    
-    //Compute the total number of triangles
+    int totalTriangles=0; //Total number of triangles
+
+    //Compute the total number of triangles. This is done by applying a reduction, so that it is computed faster    
+    #pragma omp parallel for reduction (+:totalTriangles)
     for (int i=0; i<M; i++){
         totalTriangles += triangleCount[i];
     }
@@ -203,4 +198,3 @@ int main(int argc, char* argv[]){
     
     return 0;
 }
-

@@ -1,13 +1,13 @@
 /**
- * Parallel implementation of V4 using openCilk
+ * Parallel implementation of V4 using openMP
 **/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "test.c"
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h> 
+#include <omp.h>
 #include <time.h>
+
 
 /**  
  *  Function that calculates the dot product between two columns.
@@ -216,15 +216,16 @@ int main(int argc, char* argv[]){
     clock_gettime(CLOCK_MONOTONIC, &init);
 
     //Set number of threads
-    __cilkrts_set_param("nworkers",threadNum);
+    omp_set_num_threads(threadNum);
 
     /**
-     * Execute compute function in parallel using a parallel for.
-     * Parallelizing more than that is not efficient since we cannot have as many or more threads simultaneously than the number
-     * of columns M of the matrix for big matrices. Trying to parallelize more only made the program run more slowly.
+     * Execute compute function in parallel using a parallel for. Scheduling is set to dynamic for faster results since there is no need
+     * for the treads to be executed in a certain order.
+     * Moreover, parallelizing more than that is not efficient since we cannot have as many or more threads simultaneously than the number
+     * of columns M of the matrix. Trying to parallelize more only made the program run more slowly.
     **/
-    //#pragma cilk grainsize = 1
-    cilk_for (int i=0; i<M; i++){
+    #pragma omp parallel for schedule(dynamic)
+    for(int i=0; i<M; i++){        
         compute(colVector, rowVector, i, trianglesArray);
     }
 
@@ -247,6 +248,8 @@ int main(int argc, char* argv[]){
 
     int totalTriangles=0;   //total number of triangles
 
+    //Compute the total number of triangles. This is done by applying a reduction, so that it is computed faster
+    #pragma omp parallel for reduction (+:total_triangles)
     for (int i=0; i<M; i++){
         totalTriangles += trianglesArray[i];
     }
