@@ -128,11 +128,6 @@ int main(int argc, char* argv[]){
         exit(-1);
     }
 
-    if(argc<3){
-        printf("Please give me the wanted number of threads as an argument too\n");
-        exit(-1);
-    }
-
     CSCArray* cscArray = COOtoCSC(stream);  //The sparse array in csc format
     int M = cscArray->M;
     int* rowVector = cscArray->rowVector;
@@ -143,9 +138,6 @@ int main(int argc, char* argv[]){
         printf("Error in main: Couldn't allocate memory for triangleCount");
         exit(-1);
     }    
-
-    char* threadNum=argv[2];    //number of threads
-    printf("\nYou have chosen %s threads \n",threadNum);
 
     //Start timer
     struct timespec init;
