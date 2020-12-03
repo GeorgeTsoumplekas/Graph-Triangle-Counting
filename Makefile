@@ -41,7 +41,7 @@ all: V3cilk V4cilk V3omp V4omp V4pthreads V4serial V3serial
 #e.g. make run filename=com-Youtube.mtx threadNum=3
 #This command runs the programms, they read the com-Youtube.mtx file and they employ 3 threads on the parallelization parts
 run:
-	CILK_NWORKERS=		$(threadNum)	
+	CILK_NWORKERS=$(threadNum)
 	./V3serial.out		$(filename)
 	./V3omp.out 		$(filename) $(threadNum)
 	./V3cilk.out		$(filename)
