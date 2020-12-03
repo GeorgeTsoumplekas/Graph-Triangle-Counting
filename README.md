@@ -21,6 +21,6 @@ For V4:
 Finally, a Makefile to make the executables is included.
 
 Authors: 
-1)Nikolaos Papageorgiou
+1)Nikolaos Papageorgiou, nikolaospg@ece.auth.gr
 2)Georgios Tsoumplekas, gktsoump@ece.auth.gr
 
