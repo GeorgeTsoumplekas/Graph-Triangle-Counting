@@ -8,15 +8,15 @@ This is done using two different methods, namely V3 using a triple for loop and 
 Both of these methods are implemented both serially and in parallel.
 
 For V3:
-1)Serial implementation: V3serial2.c
-2)Parallel with openMP: V3openmp.c
-3)Parallel with openCilk: V3c.c
+1)Serial implementation: V3serial.c
+2)Parallel with openMP: V3omp.c
+3)Parallel with openCilk: V3cilk.c
 
 For V4:
-1)Serial implementation: V4s2.c
-2)Parallel with pthreads: V4threads.c
-3)Parallel with openMP: V4test.c
-4)Parallel with openCilk: V4ctest.c
+1)Serial implementation: V4serial.c
+2)Parallel with pthreads: V4pthreads.c
+3)Parallel with openMP: V4omp.c
+4)Parallel with openCilk: V4cilk.c
 
 Finally, a Makefile to make the executables is included.
 
