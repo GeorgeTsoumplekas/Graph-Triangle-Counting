@@ -191,19 +191,11 @@ int main(int argc, char* argv[]){
         exit(-1);
     }
 
-    if(argc<3){
-        printf("Please give me the wanted number of threads as an argument too\n");
-        exit(-1);
-    }
-
     CSCArray* cscArray = COOtoCSC(stream);  //the sparse array in csc format
     
     int M = cscArray->M;                    //number of columns/rows of the sparse matrix
     int* rowVector = cscArray->rowVector;   //the row vector of the sparse matrix in the csc format
     int* colVector = cscArray->colVector;   //the column vector of the sparse matrix in the csc format
-
-    char* threadNum=argv[2];    //number of threads
-    printf("\nYou have chosen %s threads \n",threadNum);
 
     int* trianglesArray=calloc(M, sizeof(int)); //array containing the number of triangles adjacent to each node i (M nodes in total)
     if(trianglesArray==NULL){
