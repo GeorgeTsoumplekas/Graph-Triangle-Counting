@@ -151,7 +151,6 @@ void* runnerCompute(void* arg){
         pthread_mutex_lock(&lock);
         colNum=i;
         i++;
-        printf("colnum=%d\n", colNum);
         pthread_mutex_unlock(&lock);
         if(colNum<temp->M){
             //Checking for each nonzero element of the column

@@ -157,7 +157,6 @@ int main(int argc, char* argv[]){
 
     //Compute the total number of triangles
     for (uint32_t i=0; i<M; i++){
-        printf("triangleCount[%u] = %u\n", i,triangleCount[i]);
         totalTriangles += triangleCount[i];
     }
 
