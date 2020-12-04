@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "test.c"
 #include <time.h>
+#include <stdint.h>
 
 
 /**
@@ -14,20 +15,20 @@
  * The implementation is based on binary search. Using binary search on rowVector we try to find the element with value wantetRow
  * If we find it we return its position on rowVector, otherwise we return -1.
  * Inputs:
- *      int* rowVector: the row indices array of the csc format
- *      int* colVector: the column changes array of the csc format
- *      int colNum: the index of the column we want to examine
- *      int wantedRow: the index of the row that we want our element to belong to
+ *      uint32_t* rowVector: the row indices array of the csc format
+ *      uint32_t* colVector: the column changes array of the csc format
+ *      uint32_t colNum: the index of the column we want to examine
+ *      uint32_t wantedRow: the index of the row that we want our element to belong to
  * Outputs:
- *      int result: 1 if there is an element in (wanted row, colNum), 0 otherwise
+ *      int32_t result: the position on rowVector if there is an element in (wanted row, colNum), -1 otherwise
  **/
 
-int elementInColumnCheck(int* rowVector,int* colVector, int colNum, int wantedRow){
-    int result=-1;
+int32_t elementInColumnCheck(uint32_t* rowVector,uint32_t* colVector, uint32_t colNum, uint32_t wantedRow){
+    int32_t result=-1;
 
-    int left = colVector[colNum];       //first element of the sub-array in which we do our binary search
-    int right = colVector[colNum+1]-1;  //last element of the sub-array in which we do our binary search
-    int middle = (left+right)/2;
+    int32_t left = colVector[colNum];       //first element of the sub-array in which we do our binary search
+    int32_t right = colVector[colNum+1]-1;  //last element of the sub-array in which we do our binary search
+    int32_t middle = (left+right)/2;
 
     //binary search
     while(left<=right){
@@ -59,7 +60,7 @@ int main(int argc, char* argv[]){
     char* s=argv[1];
 
     //Checking if the argument is .mtx file
-    int nameLength = strlen(s);    //length of the name of the file    
+    uint32_t nameLength = strlen(s);    //length of the name of the file    
     if(!((s[nameLength-1]=='x') && (s[nameLength-2]=='t') && (s[nameLength-3]=='m') && (s[nameLength-4]=='.'))){
         printf("Your argument is not an .mtx file\n");
         exit(-1);
@@ -90,19 +91,19 @@ int main(int argc, char* argv[]){
 
     CSCArray* cscArray = COOtoCSC(stream);  //The sparse array in csc format
     
-    int* rowVector = cscArray->rowVector;
-    int* colVector = cscArray->colVector;
-    int M = cscArray->M;
+    uint32_t* rowVector = cscArray->rowVector;
+    uint32_t* colVector = cscArray->colVector;
+    uint32_t M = cscArray->M;
 
-    int elemsInCol;                                 //Number on nonzero elements in a particular column
-    int* triangleCount = calloc(M, sizeof(int));    //Each entry contains the number of triangles in which at least an element of this column belongs to
+    uint32_t elemsInCol;                                 //Number on nonzero elements in a particular column
+    uint32_t* triangleCount = calloc(M, sizeof(uint32_t));    //Each entry contains the number of triangles in which at least an element of this column belongs to
     if(triangleCount==NULL){
         printf("Error in main: Couldn't allocate memory for triangleCount");
         exit(-1);
     }     
 
-    int element1;   //First common idice we investigate
-    int element2;   //Second common indice we investigate
+    uint32_t element1;   //First common idice we investigate
+    uint32_t element2;   //Second common indice we investigate
 
     //Start timer
     struct timespec init;
@@ -117,12 +118,12 @@ int main(int argc, char* argv[]){
      * triangleCount[element1] and triangleCount[element2] we would add the same triangle three times instead of one.
     **/
 
-    for(int i=0; i<M; i++){
+    for(uint32_t i=0; i<M; i++){
         elemsInCol = colVector[i+1]- colVector[i];
         //Check for every pair of the column with this double for loop
-        for(int j=0; j<elemsInCol-1; j++){
+        for(uint32_t j=0; j<elemsInCol-1; j++){
             element1 = rowVector[colVector[i]+j];
-            for (int k=j+1; k<elemsInCol; k++ ){
+            for (uint32_t k=j+1; k<elemsInCol; k++ ){
                 element2 = rowVector[colVector[i]+k];          
                 //Check if the third common indice exists
                 if (elementInColumnCheck(rowVector, colVector, element1, element2)>=0){
@@ -137,7 +138,7 @@ int main(int argc, char* argv[]){
     clock_gettime(CLOCK_MONOTONIC, &last);
 
     long ns;
-    int seconds;
+    uint32_t seconds;
     if(last.tv_nsec <init.tv_nsec){
         ns=init.tv_nsec - last.tv_nsec;
         seconds= last.tv_sec - init.tv_sec -1;
@@ -147,20 +148,21 @@ int main(int argc, char* argv[]){
         ns= last.tv_nsec -init.tv_nsec ;
         seconds= last.tv_sec - init.tv_sec ;
     }
-    printf("The seconds elapsed are %d and the nanoseconds are %ld\n",seconds, ns); 
+    printf("The seconds elapsed are %u and the nanoseconds are %ld\n",seconds, ns); 
 
     CSCArrayfree(cscArray);
     free(cscArray);
 
-    int totalTriangles=0; //Total number of triangles
+    uint32_t totalTriangles=0; //Total number of triangles
 
     //Compute the total number of triangles
-    for (int i=0; i<M; i++){
+    for (uint32_t i=0; i<M; i++){
+        printf("triangleCount[%u] = %u\n", i,triangleCount[i]);
         totalTriangles += triangleCount[i];
     }
 
     //We divide the total number by 3 because now each triangle is added 3 times, 1 for each node in which it is adjacent
-    printf("Total triangles = %d\n", totalTriangles/3);
+    printf("Total triangles = %u\n", totalTriangles/3);
 
     free(triangleCount);
     

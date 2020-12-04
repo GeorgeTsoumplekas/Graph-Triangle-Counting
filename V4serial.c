@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "test.c"
+#include <stdint.h>
 
 
 /**  
@@ -24,33 +25,33 @@
  *  that has fewer nonzero elements than the other in order to decrease the times we loop. In overall, the algorithm runs in O(nlgn) asymptotically
  *  where n is the length of the column of the matrix.
  *  Input:
- *      int* rowVector: the row indices array of the csc format
- *      int* colVector: the column changes array of the csc format
- *      int colNum1: the index of the first column
- *      int colNum2: the index of the second column
+ *      uint32_t* rowVector: the row indices array of the csc format
+ *      uint32_t* colVector: the column changes array of the csc format
+ *      uint32_t colNum1: the index of the first column
+ *      uint32_t colNum2: the index of the second column
  *  Output:
- *      int result: the result of the dot product between the column with index colNum1 and the column with index colNum2
+ *      uint32_t result: the result of the dot product between the column with index colNum1 and the column with index colNum2
  **/
 
-int product(int* rowVector, int* colVector, int colNum1, int colNum2){
-    int result = 0;     //the dot product of the two columns
+uint32_t product(uint32_t* rowVector, uint32_t* colVector, uint32_t colNum1, uint32_t colNum2){
+    uint32_t result = 0;     //the dot product of the two columns
 
-    int smallLength;    //the number of nonzero elements in the column that has fewer nonzero elements than the other
-    int bigLength;      //the number of nonzero elements in the column that has more nonzero elements than the other
+    uint32_t smallLength;    //the number of nonzero elements in the column that has fewer nonzero elements than the other
+    uint32_t bigLength;      //the number of nonzero elements in the column that has more nonzero elements than the other
 
-    int rowIndice1;     //the column index of the element examined. We take advantage here of the symmetry of the matrix, so the csc and crs formats are equivalent
+    uint32_t rowIndice1;     //the column index of the element examined. We take advantage here of the symmetry of the matrix, so the csc and crs formats are equivalent
     
-    int smallColIndex;  //the column index of the column that has fewer nonzero elements than the other
-    int bigColIndex;    //the column index of the column that has more nonzero elements than the other
-    int initialLeft;   //initial left, the index in rowVector of the first nonzero element belonging in the "big" column
+    uint32_t smallColIndex;  //the column index of the column that has fewer nonzero elements than the other
+    uint32_t bigColIndex;    //the column index of the column that has more nonzero elements than the other
+    uint32_t initialLeft;   //initial left, the index in rowVector of the first nonzero element belonging in the "big" column
 
-    int left;       //first element of the sub-array in which we do our binary search
-    int right;      //last element of the sub-array in which we do our binary search
-    int middle;     //middle element in the binary search
-    int flag;
+    int32_t left;       //first element of the sub-array in which we do our binary search
+    int32_t right;      //last element of the sub-array in which we do our binary search
+    int32_t middle;     //middle element in the binary search
+    uint32_t flag;
 
-    int colLength1 = colVector[colNum1+1] - colVector[colNum1]; //number of nonzero elements in column with index colNum1
-    int colLength2=colVector[colNum2+1] - colVector[colNum2];   //number of nonzero elements in column with index colNum2
+    uint32_t colLength1 = colVector[colNum1+1] - colVector[colNum1]; //number of nonzero elements in column with index colNum1
+    uint32_t colLength2=colVector[colNum2+1] - colVector[colNum2];   //number of nonzero elements in column with index colNum2
 
     //Check which column has fewer nonzero elements 
     if(colLength1<=colLength2){
@@ -84,7 +85,7 @@ int product(int* rowVector, int* colVector, int colNum1, int colNum2){
     **/
 
    //Loop for each nonzero element on the "small" column
-    for(int i=0; i<smallLength; ++i){
+    for(uint32_t i=0; i<smallLength; ++i){
         flag = 0;
         rowIndice1 = rowVector[colVector[smallColIndex]+i]; //wanted row
         left = initialLeft;                     //first element of the subarray in which we execute the bianry search
@@ -129,7 +130,7 @@ int main(int argc, char* argv[]){
     char* s=argv[1];
 
     //Checking if the argument is .mtx file
-    int nameLength = strlen(s);        //length of the name of the file
+    uint32_t nameLength = strlen(s);        //length of the name of the file
     if(!((s[nameLength-1]=='x') && (s[nameLength-2]=='t') && (s[nameLength-3]=='m') && (s[nameLength-4]=='.'))){
         printf("Your argument is not an .mtx file\n");
         exit(-1);
@@ -160,9 +161,9 @@ int main(int argc, char* argv[]){
 
     CSCArray* cscArray = COOtoCSC(stream); //The sparse array in csc format
 
-    int* rowVector = cscArray->rowVector;   //the row vector of the sparse matrix in the csc format
-    int* colVector = cscArray->colVector;   //the column vector of the sparse matrix in the csc format
-    int M = cscArray->M;                    //number of columns/rows of the sparse matrix
+    uint32_t* rowVector = cscArray->rowVector;   //the row vector of the sparse matrix in the csc format
+    uint32_t* colVector = cscArray->colVector;   //the column vector of the sparse matrix in the csc format
+    uint32_t M = cscArray->M;                    //number of columns/rows of the sparse matrix
 
     /**
      * The following part of the code calculates the number of triangles adjacent to each node and ultimately the total number of triangles of the sparse matrix
@@ -175,12 +176,12 @@ int main(int argc, char* argv[]){
      * To compute the total number of triangles we have to add all triangles adjacent to each node i and then divide it by 3 because each triangle is calculated 3 times.
     **/
 
-    int colLength;      //number of nonzero elements of a column
-    int rowNum;         //the row indice
-    int colNum;         //the column indice
-    int productNum;     //dot product of row with index rowNum with column with index colNum
+    uint32_t colLength;      //number of nonzero elements of a column
+    uint32_t rowNum;         //the row indice
+    uint32_t colNum;         //the column indice
+    uint32_t productNum;     //dot product of row with index rowNum with column with index colNum
     
-    int* trianglesArray=calloc(M, sizeof(int)); //array containing the number of triangles adjacent to each node i (M nodes in total)
+    uint32_t* trianglesArray=calloc(M, sizeof(uint32_t)); //array containing the number of triangles adjacent to each node i (M nodes in total)
     if(trianglesArray==NULL){
         printf("Error in main: Couldn't allocate memory for trianglesArray");
         exit(-1);
@@ -192,11 +193,11 @@ int main(int argc, char* argv[]){
 
     //Loop that calculates the number of triangles adjacent to each node
     //Check for each column
-    for(int i=0; i<M; i++){ 
+    for(uint32_t i=0; i<M; i++){ 
         colLength = colVector[i+1] - colVector[i];
         colNum=i;
         //Checking for each nonzero element of the column
-        for(int j=0; j<colLength; j++){
+        for(uint32_t j=0; j<colLength; j++){
             rowNum = rowVector[colVector[i]+j];
             //If this row contains only zeros, skip it. We take advantage of the fact that the row with index rowNum is the same with the column with index rowNum
             if(colVector[rowNum+1]-colVector[rowNum] == 0){
@@ -213,7 +214,7 @@ int main(int argc, char* argv[]){
     clock_gettime(CLOCK_MONOTONIC, &last);
 
     long ns;
-    int seconds;
+    uint32_t seconds;
     if(last.tv_nsec <init.tv_nsec){
         ns=init.tv_nsec - last.tv_nsec;
         seconds= last.tv_sec - init.tv_sec -1;
@@ -225,10 +226,10 @@ int main(int argc, char* argv[]){
     }
     printf("The seconds elapsed are %d and the nanoseconds are %ld\n",seconds, ns);
 
-    int totalTriangles=0; //total number of triangles
+    uint32_t totalTriangles=0; //total number of triangles
 
     //Calculate the total number of triangles
-    for(int i=0;i<M;++i){
+    for(uint32_t i=0;i<M;++i){
         totalTriangles += trianglesArray[i];
     }
     totalTriangles /= 3;

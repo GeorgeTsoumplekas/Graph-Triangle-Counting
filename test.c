@@ -4,6 +4,7 @@
 #include "mmio.c"
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 
 /** 
  * Type definition of a struct, which resembles the CSC data structure 
@@ -11,10 +12,10 @@
  **/
 
 typedef struct{            
-    int* rowVector;     //array containing the row indeices of each nonzero
-    int* colVector;     //array containing the index of the elements which start a column of the sparse matrix
-    int nz;             //number of nonzero elements
-    int M;              //number of columns (=number of rows because the matrix is square)
+    uint32_t* rowVector;     //array containing the row indeices of each nonzero
+    uint32_t* colVector;     //array containing the index of the elements which start a column of the sparse matrix
+    uint32_t nz;             //number of nonzero elements
+    uint32_t M;              //number of columns (=number of rows because the matrix is square)
 } CSCArray;
 
 /**
@@ -45,21 +46,21 @@ CSCArray* COOtoCSC(FILE* stream){
     printf("started converting mtx file lower triangular CSC\n");
     
     //Aquiring data about the sizes
-    int M,N,nz;
+    uint32_t M,N,nz;
     
     mm_read_mtx_crd_size(stream, &M, &N, &nz);
 
     //Finding out how many digits the M number is comprised of (used to create the buffer)
-    int Mdigits=0;
-    int digitCount=M;
+    uint32_t Mdigits=0;
+    uint32_t digitCount=M;
     while (digitCount !=0 ) {
         digitCount /= 10;     // n = n/10
         ++Mdigits;
     }
 
     char buffer[Mdigits+1];                     //buffer used to process the data from each line
-    int* colVector=malloc((M+1)*sizeof(int));   //index of the elements which start a column of A for the lower triangular part of the matrix
-    int* rowVector=malloc(nz*sizeof(int));      //row indices of each non zero element for the lower triangular part of the matrix
+    uint32_t* colVector=malloc((M+1)*sizeof(uint32_t));   //index of the elements which start a column of A for the lower triangular part of the matrix
+    uint32_t* rowVector=malloc(nz*sizeof(uint32_t));      //row indices of each non zero element for the lower triangular part of the matrix
     colVector[0]=0; 
 
     if(colVector==NULL){
@@ -72,15 +73,15 @@ CSCArray* COOtoCSC(FILE* stream){
         exit(-1);
     }        
 
-    int rowIndiceRead;      //the row indice we read at each line of the .mtx file (first number on the line)
-    int colIndiceRead;      //the column indice we read at each line of the .mtx file (second number on the line)
-    int elemsUntilZeroCols; //temporarily store the number of elements up until the consecutive all-zero columns
-    int colCheck=M+1;       //the integer used to understand whether we have finished converting a column. Initialized with M+1 so that it doesn't go inside the if loop the first time
-    int lowerColElements=0; //how many nonzero elements we have in a specific column of the lower triangular matrix
-    int colIndex=1;         //integer used as the index for the filling of the colVector 
-    int upperColElements=0;  //how many nonzero elements we have in a specific column of the upper triangular matrix
+    uint32_t rowIndiceRead;      //the row indice we read at each line of the .mtx file (first number on the line)
+    uint32_t colIndiceRead;      //the column indice we read at each line of the .mtx file (second number on the line)
+    uint32_t elemsUntilZeroCols; //temporarily store the number of elements up until the consecutive all-zero columns
+    uint32_t colCheck=M+1;       //the integer used to understand whether we have finished converting a column. Initialized with M+1 so that it doesn't go inside the if loop the first time
+    uint32_t lowerColElements=0; //how many nonzero elements we have in a specific column of the lower triangular matrix
+    uint32_t colIndex=1;         //integer used as the index for the filling of the colVector 
+    uint32_t upperColElements=0;  //how many nonzero elements we have in a specific column of the upper triangular matrix
 
-    int **upperVectors = malloc(M*sizeof(int*));       //array containing the row indices of each nonzero element in each column for the upper triangular matrix
+    uint32_t **upperVectors = malloc(M*sizeof(uint32_t*));       //array containing the row indices of each nonzero element in each column for the upper triangular matrix
     
     if(upperVectors==NULL){
         printf("Error in COOtoCSC: Couldn't allocate memory for upperVectors");
@@ -88,8 +89,8 @@ CSCArray* COOtoCSC(FILE* stream){
     }
 
     //Creating the vectors for the upper triangular part of the matrix. The first element of each vector tells us the number of elements of the vector
-    for(int i=0; i<M; i++){     
-        upperVectors[i]=malloc(sizeof(int));
+    for(uint32_t i=0; i<M; i++){     
+        upperVectors[i]=malloc(sizeof(uint32_t));
         if(upperVectors[i]==NULL){
             printf("Error in COOtoCSC: Couldn't allocate memory for upperVectors[%d]", i);
             exit(-1);
@@ -98,7 +99,7 @@ CSCArray* COOtoCSC(FILE* stream){
     }
    
     //The loop that will fill out rowVector, colVector and upperVectors
-    for(int i=0; i<nz; i++){ 
+    for(uint32_t i=0; i<nz; i++){ 
 
         fscanf(stream,"%s",buffer);
         rowIndiceRead=atoi(buffer)-1;
@@ -117,7 +118,7 @@ CSCArray* COOtoCSC(FILE* stream){
         if(colCheck<colIndiceRead){             //Check if the column indice we got is bigger than the previous column indice we examined
             if(colIndiceRead-colCheck>1){       //Checking if one or more consecutive columns have only elements equal to zero
                 elemsUntilZeroCols = colVector[colIndex-1] + lowerColElements;
-                for (int k=0; k<(colIndiceRead-colCheck); k++){
+                for (uint32_t k=0; k<(colIndiceRead-colCheck); k++){
                     colVector[colIndex]=elemsUntilZeroCols;   //For all these all-zero columns put in the respective column array the value of the total elements up until that point
                     colIndex++;
                 }
@@ -136,7 +137,7 @@ CSCArray* COOtoCSC(FILE* stream){
 
         //Note: the equivalent of a csc down triangular matrix is a crs upper triangular matrix. This is why use the row indices here as column indices and vice versa.
         upperVectors[rowIndiceRead][0]++;        //Increase the element counter of the vector of the specific column
-        upperVectors[rowIndiceRead]=realloc(upperVectors[rowIndiceRead], (upperVectors[rowIndiceRead][0])*sizeof(int));
+        upperVectors[rowIndiceRead]=realloc(upperVectors[rowIndiceRead], (upperVectors[rowIndiceRead][0])*sizeof(uint32_t));
         if(upperVectors[rowIndiceRead]==NULL){
             printf("Error in COOtoCSC: Couldn't reallocate memory for upperVectors[%d]", rowIndiceRead);
             exit(-1);
@@ -157,11 +158,11 @@ CSCArray* COOtoCSC(FILE* stream){
 
     free(stream);
 
-    int* finalRowVector = calloc(2*nz,sizeof(int));     //row indices of each non zero element for the whole matrix
-    int rowVectorCount=0;                               //shows how many row indices we have added in the finalRowVector
-    int* finalColVector = calloc((M+1),sizeof(int));    //index of the elements which start a column of the whole matrix
-    int colVectorCount=0;                               //number of nonzero elements in a particular column for the whole sparse matrix
-    int cscInitialColElems;                             //number of nonzero elements in the lower triangular part of the matrix
+    uint32_t* finalRowVector = calloc(2*nz,sizeof(uint32_t));     //row indices of each non zero element for the whole matrix
+    uint32_t rowVectorCount=0;                               //shows how many row indices we have added in the finalRowVector
+    uint32_t* finalColVector = calloc((M+1),sizeof(uint32_t));    //index of the elements which start a column of the whole matrix
+    uint32_t colVectorCount=0;                               //number of nonzero elements in a particular column for the whole sparse matrix
+    uint32_t cscInitialColElems;                             //number of nonzero elements in the lower triangular part of the matrix
 
     if(finalRowVector==NULL){
         printf("Error in COOtoCSC: Couldn't allocate memory for finalRowVector");
@@ -174,13 +175,13 @@ CSCArray* COOtoCSC(FILE* stream){
     }
 
     //The loop that will fill out finalRowVector and finalColVector
-    for(int i=0; i<M; i++){
+    for(uint32_t i=0; i<M; i++){
         
         //Getting the values of the upper triangular half of the matrix
         //Check for nonzero elements in the column
         if(upperVectors[i][0]>1){
             //Add these elements on the final row vector
-            for(int j=0; j<upperVectors[i][0] -1; j++){
+            for(uint32_t j=0; j<upperVectors[i][0]-1; j++){
                 finalRowVector[rowVectorCount] = upperVectors[i][j+1];
                 rowVectorCount ++;
                 colVectorCount ++;
@@ -196,7 +197,7 @@ CSCArray* COOtoCSC(FILE* stream){
         if(i<M-1){
             cscInitialColElems=colVector[i+1] - colVector[i];
             //Add these elements on the final row vector
-            for (int j=0; j< cscInitialColElems; j++){             
+            for (uint32_t j=0; j<cscInitialColElems; j++){             
                 finalRowVector[rowVectorCount] = rowVector[colVector[i] +j];
                 rowVectorCount ++;
                 colVectorCount ++;
