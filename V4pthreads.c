@@ -11,13 +11,13 @@
 
 //the struct that will be used to pass arguments to the runner_compute function of the spawned threads.
 typedef struct{
-    int* colVector;     //the column vector of the sparse matrix in the csc format
-    int* rowVector;     //the row vector of the sparse matrix in the csc format
-    int* triangles;     //array containing the number of triangles adjacent to each node i (M nodes in total)
-    int M;              //number of columns/rows of the sparse matrix
+    uint32_t* colVector;     //the column vector of the sparse matrix in the csc format
+    uint32_t* rowVector;     //the row vector of the sparse matrix in the csc format
+    uint32_t* triangles;     //array containing the number of triangles adjacent to each node i (M nodes in total)
+    uint32_t M;              //number of columns/rows of the sparse matrix
 }pthreadArg;
 
-int i=-1;       //global variable that works as a counter to make sure runnerCompute is executed for each column of the matrix
+uint32_t i=0;       //global variable that works as a counter to make sure runnerCompute is executed for each column of the matrix
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; //lock used to avoid data races on counter i and insure it increases correctly 
 
 
@@ -44,25 +44,25 @@ pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; //lock used to avoid data race
  *      int result: the result of the dot product between the column with index colNum1 and the column with index colNum2
  **/
 
-int product(int* rowVector, int* colVector, int colNum1, int colNum2){
-    int result = 0;     //the dot product of the two columns
+uint32_t product(uint32_t* rowVector, uint32_t* colVector, uint32_t colNum1, uint32_t colNum2){
+    uint32_t result = 0;     //the dot product of the two columns
 
-    int smallLength;    //the number of nonzero elements in the column that has fewer nonzero elements than the other
-    int bigLength;      //the number of nonzero elements in the column that has more nonzero elements than the other
+    uint32_t smallLength;    //the number of nonzero elements in the column that has fewer nonzero elements than the other
+    uint32_t bigLength;      //the number of nonzero elements in the column that has more nonzero elements than the other
 
-    int rowIndice1;     //the column index of the element examined. We take advantage here of the symmetry of the matrix, so the csc and crs formats are equivalent
+    uint32_t rowIndice1;     //the column index of the element examined. We take advantage here of the symmetry of the matrix, so the csc and crs formats are equivalent
     
-    int smallColIndex;  //the column index of the column that has fewer nonzero elements than the other
-    int bigColIndex;    //the column index of the column that has more nonzero elements than the other
-    int initialLeft;    //initial left, the index in rowVector of the first nonzero element belonging in the "big" column
+    uint32_t smallColIndex;  //the column index of the column that has fewer nonzero elements than the other
+    uint32_t bigColIndex;    //the column index of the column that has more nonzero elements than the other
+    uint32_t initialLeft;    //initial left, the index in rowVector of the first nonzero element belonging in the "big" column
 
-    int left;       //first element of the sub-array in which we do our binary search
-    int right;      //last element of the sub-array in which we do our binary search
-    int middle;     //middle element in the binary search
-    int flag;       //flag activated when we find the element in the binary search algorithm
+    int32_t left;       //first element of the sub-array in which we do our binary search
+    int32_t right;      //last element of the sub-array in which we do our binary search
+    int32_t middle;     //middle element in the binary search
+    uint32_t flag;       //flag activated when we find the element in the binary search algorithm
 
-    int colLength1 = colVector[colNum1+1] - colVector[colNum1]; //number of nonzero elements in column with index colNum1
-    int colLength2=colVector[colNum2+1] - colVector[colNum2];   //number of nonzero elements in column with index colNum2
+    uint32_t colLength1 = colVector[colNum1+1] - colVector[colNum1]; //number of nonzero elements in column with index colNum1
+    uint32_t colLength2=colVector[colNum2+1] - colVector[colNum2];   //number of nonzero elements in column with index colNum2
 
     //Check which column has fewer nonzero elements 
     if(colLength1<=colLength2){
@@ -96,7 +96,7 @@ int product(int* rowVector, int* colVector, int colNum1, int colNum2){
     **/
 
    //Loop for each nonzero element on the "small" column
-    for(int i=0; i<smallLength; ++i){
+    for(uint32_t i=0; i<smallLength; ++i){
         flag = 0;
         rowIndice1 = rowVector[colVector[smallColIndex]+i]; //wanted row
         left = initialLeft;                     //first element of the subarray in which we execute the bianry search
@@ -142,19 +142,20 @@ int product(int* rowVector, int* colVector, int colNum1, int colNum2){
 
 void* runnerCompute(void* arg){
     pthreadArg* temp = (pthreadArg*)arg;    //getting the argument to a temporary-local variable
-    int colNum;                             //the column index (node) we are working with
-    int productNum;                         //the dot product of a particular row with a particular column of the matrix
+    uint32_t colNum;                             //the column index (node) we are working with
+    uint32_t productNum;                         //the dot product of a particular row with a particular column of the matrix
 
     //Check if there are still columns to be examined
     while(i<temp->M-1){
         //Mutual exclusion, so that a proper index i is assigned to the each thread and there are no data races over i
         pthread_mutex_lock(&lock);
-        i++;
         colNum=i;
+        i++;
+        printf("colnum=%d\n", colNum);
         pthread_mutex_unlock(&lock);
         if(colNum<temp->M){
             //Checking for each nonzero element of the column
-            for(int j=0; j<temp->colVector[colNum+1]-temp->colVector[colNum]; j++){       
+            for(uint32_t j=0; j<temp->colVector[colNum+1]-temp->colVector[colNum]; j++){       
                 productNum = product(temp->rowVector, temp->colVector, temp->rowVector[temp->colVector[colNum]+j], colNum);
                 if(productNum>0){                   
                     temp->triangles[colNum] += productNum;
@@ -179,7 +180,7 @@ int main(int argc, char* argv[]){
     char* s=argv[1];
 
     //Checking if the argument is .mtx file
-    int nameLength = strlen(s);        //length of the name of the file
+    uint32_t nameLength = strlen(s);        //length of the name of the file
     if(!((s[nameLength-1]=='x') && (s[nameLength-2]=='t') && (s[nameLength-3]=='m') && (s[nameLength-4]=='.'))){
         printf("Your argument is not an .mtx file\n");
         exit(-1);
@@ -215,14 +216,14 @@ int main(int argc, char* argv[]){
 
     CSCArray* cscArray = COOtoCSC(stream);  //the sparse array in csc format
     
-    int M = cscArray->M;                    //number of columns/rows of the sparse matrix
-    int* rowVector = cscArray->rowVector;   //the row vector of the sparse matrix in the csc format
-    int* colVector = cscArray->colVector;   //the column vector of the sparse matrix in the csc format
+    uint32_t M = cscArray->M;                    //number of columns/rows of the sparse matrix
+    uint32_t* rowVector = cscArray->rowVector;   //the row vector of the sparse matrix in the csc format
+    uint32_t* colVector = cscArray->colVector;   //the column vector of the sparse matrix in the csc format
 
-    int threadNum=atoi(argv[2]);    //number of threads
+    uint32_t threadNum=atoi(argv[2]);    //number of threads
     printf("\nYou have chosen %d threads \n",threadNum);
 
-    int* trianglesArray=calloc(M, sizeof(int)); //array containing the number of triangles adjacent to each node i (M nodes in total)
+    uint32_t* trianglesArray=calloc(M, sizeof(uint32_t)); //array containing the number of triangles adjacent to each node i (M nodes in total)
     if(trianglesArray==NULL){
         printf("Error in main: Couldn't allocate memory for trianglesArray");
         exit(-1);
@@ -243,12 +244,12 @@ int main(int argc, char* argv[]){
      * of columns M of the matrix. Trying to parallelize more only made the program run more slowly.
     **/
 
-    for(int i=0; i<threadNum; i++){
+    for(uint32_t i=0; i<threadNum; i++){
         pthread_create(&idVector[i], NULL, runnerCompute, &arg);
     }
     
     //After all work is done threads are joined back to the main thread
-    for(int i=0; i<threadNum; i++){
+    for(uint32_t i=0; i<threadNum; i++){
         pthread_join(idVector[i], NULL);
     }
 
@@ -256,7 +257,7 @@ int main(int argc, char* argv[]){
     struct timespec last;   
     clock_gettime(CLOCK_MONOTONIC, &last);
     long ns;
-    int seconds;
+    uint32_t seconds;
     if(last.tv_nsec <init.tv_nsec){
         ns=init.tv_nsec - last.tv_nsec;
         seconds= last.tv_sec - init.tv_sec -1;
@@ -267,9 +268,9 @@ int main(int argc, char* argv[]){
     }
     printf("The seconds elapsed are %d and the nanoseconds are %ld\n",seconds, ns);
 
-    int totalTriangles=0;  //total number of triangles
+    uint32_t totalTriangles=0;  //total number of triangles
 
-    for (int i=0; i<M; i++){
+    for (uint32_t i=0; i<M; i++){
         totalTriangles += trianglesArray[i];
     }
     printf("Total triangles = %d\n", totalTriangles/3);
