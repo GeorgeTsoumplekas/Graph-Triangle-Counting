@@ -319,8 +319,21 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
     return vector;
 }
 
+/**
+ * This function is used as a test to see whether the calculation of the vector containing the number of triangles each
+ * node is adjacent to is correct. The function calculates this vector with a method that is verifiably correct. Then,
+ * each element of the given vector is compared with the correspondent element of the created vector. If all correspondent
+ * elements are equal, then the given vector is correct and the calculation of triangles in our serial or parallel
+ * method is correct.
+ * Input:
+ *      uint32_t* vector1: the vector that is created by the serial or parallel method and we want to see if it is correct
+ *      char* filename: string containing the name of the .mtx in which the sparse matrix is contained in matrix market format
+ * Output:
+ *      uint32_t result: 1 if vector1 is correct, 0 otherwise
+**/
+
 uint32_t checkCorrectness(uint32_t* vector1, char* filename){
-    uint32_t result = 1;
+    uint32_t result = 1;    //returned value, 1 if vector1 is correct, 0 otherwise
 
     FILE *stream;       //file pointer to read the given file
     MM_typecode t;      //the typecode struct  
@@ -334,12 +347,14 @@ uint32_t checkCorrectness(uint32_t* vector1, char* filename){
 
     mm_read_banner(stream,&t);
 
-    COOArray* cooArray = createCOO(stream);
+    COOArray* cooArray = createCOO(stream); //the lower triangular part of the sparse matrix in coo format
 
     fclose(stream);
 
+    //Create the verifiably correct vector
     uint32_t* vector2 = vertexWiseTriangleCounts(cooArray->coo_row, cooArray->coo_col, cooArray->n, cooArray->nz);
     
+    //Check the two vectors
     for(uint32_t i=0;i<cooArray->n;++i){
         if(vector1[i]!=vector2[i]){
             result=0;
