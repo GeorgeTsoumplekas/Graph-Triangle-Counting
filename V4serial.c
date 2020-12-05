@@ -6,7 +6,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "test.c"
+#include "tester.c"
 #include <stdint.h>
 
 
@@ -227,6 +227,14 @@ int main(int argc, char* argv[]){
         seconds= last.tv_sec - init.tv_sec ;
     }
     printf("For V4serial the seconds elapsed are %u and the nanoseconds are %ld\n",seconds, ns);
+
+    if(checkCorrectness(trianglesArray, s)==0){
+        printf("Incorrect calculation of triangles\n");
+        exit(-1);
+    }
+    else{
+        printf("Correct calculation of triangles\n");
+    }
 
     uint32_t totalTriangles=0; //total number of triangles
 
