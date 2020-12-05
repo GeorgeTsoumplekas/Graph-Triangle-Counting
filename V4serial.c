@@ -161,6 +161,8 @@ int main(int argc, char* argv[]){
 
     CSCArray* cscArray = COOtoCSC(stream); //The sparse array in csc format
 
+    fclose(stream);
+
     uint32_t* rowVector = cscArray->rowVector;   //the row vector of the sparse matrix in the csc format
     uint32_t* colVector = cscArray->colVector;   //the column vector of the sparse matrix in the csc format
     uint32_t M = cscArray->M;                    //number of columns/rows of the sparse matrix

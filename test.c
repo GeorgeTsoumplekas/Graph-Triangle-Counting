@@ -1,10 +1,10 @@
 //Source file containing functions that help us take an mtx file and take the associated CSC format of the array
 
-#include <stdio.h>
 #include "mmio.c"
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
 
 /** 
  * Type definition of a struct, which resembles the CSC data structure 
@@ -155,8 +155,6 @@ CSCArray* COOtoCSC(FILE* stream){
         colIndex++;
         colVector[colIndex]=colVector[colIndex-1];
     }  
-
-    free(stream);
 
     uint32_t* finalRowVector = calloc(2*nz,sizeof(uint32_t));     //row indices of each non zero element for the whole matrix
     uint32_t rowVectorCount=0;                               //shows how many row indices we have added in the finalRowVector
