@@ -168,7 +168,7 @@ void* runnerCompute(void* arg){
 
 
 int main(int argc, char* argv[]){
-
+    printf("\nStarted V4pthreads\n");
     FILE *stream;       //file pointer to read the given file
     MM_typecode t;      //the typecode struct
     
@@ -265,7 +265,7 @@ int main(int argc, char* argv[]){
         ns= last.tv_nsec -init.tv_nsec ;
         seconds= last.tv_sec - init.tv_sec ;
     }
-    printf("The seconds elapsed are %d and the nanoseconds are %ld\n",seconds, ns);
+    printf("For V4pthreads the seconds elapsed are %u and the nanoseconds are %ld\n",seconds, ns);
 
     uint32_t totalTriangles=0;  //total number of triangles
 

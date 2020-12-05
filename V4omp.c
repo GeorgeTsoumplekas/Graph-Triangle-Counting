@@ -152,7 +152,7 @@ void compute(uint32_t *colVector, uint32_t*rowVector, uint32_t i, uint32_t* tria
 
 
 int main(int argc, char* argv[]){
-
+    printf("\nStarted V4omp\n");
     FILE *stream;       //file pointer to read the given file
     MM_typecode t;      //the typecode struct
     
@@ -245,7 +245,7 @@ int main(int argc, char* argv[]){
         ns= last.tv_nsec -init.tv_nsec ;
         seconds= last.tv_sec - init.tv_sec ;
     }
-    printf("The seconds elapsed are %d and the nanoseconds are %ld\n",seconds, ns);
+    printf("For V4omp the seconds elapsed are %u and the nanoseconds are %ld\n",seconds, ns);
 
     uint32_t totalTriangles=0;   //total number of triangles
 

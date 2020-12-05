@@ -43,7 +43,7 @@ void CSCArrayfree(CSCArray* arg){
 
 CSCArray* COOtoCSC(FILE* stream){        
 
-    printf("started converting mtx file lower triangular CSC\n");
+    printf("Started converting mtx file to CSC\n");
     
     //Aquiring data about the sizes
     uint32_t M,N,nz;
@@ -224,5 +224,6 @@ CSCArray* COOtoCSC(FILE* stream){
     retVal->M=M;
     retVal->nz=rowVectorCount;    
     
+    printf("The conversion is over\n");
     return retVal;  
 }
