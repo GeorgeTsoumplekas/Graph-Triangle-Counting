@@ -48,7 +48,7 @@ int32_t elementInColumnCheck(uint32_t* rowVector,uint32_t* colVector, uint32_t c
 }
 
 int main(int argc, char* argv[]){
-    
+    printf("\nStarted V3serial\n");
     FILE *stream;       //file pointer to read the given file
     MM_typecode t;      //the typecode struct
     
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]){
         ns= last.tv_nsec -init.tv_nsec ;
         seconds= last.tv_sec - init.tv_sec ;
     }
-    printf("The seconds elapsed are %u and the nanoseconds are %ld\n",seconds, ns); 
+    printf("For V3serial the seconds elapsed are %u and the nanoseconds are %ld\n",seconds, ns); 
 
     CSCArrayfree(cscArray);
     free(cscArray);

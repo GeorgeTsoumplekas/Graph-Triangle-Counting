@@ -85,7 +85,7 @@ void compute(uint32_t* rowVector, uint32_t* colVector, uint32_t* triangleCount, 
 
 
 int main(int argc, char* argv[]){
-    
+    printf("\nStarted V3omp\n");
     FILE *stream;       //file pointer to read the given file
     MM_typecode t;      //the typecode struct
     
@@ -142,6 +142,7 @@ int main(int argc, char* argv[]){
         exit(-1);
     }
 
+
     uint32_t threadNum = atoi(argv[2]);  //number of threads
     printf("\nYou have chosen %d threads \n",threadNum);
 
@@ -179,7 +180,7 @@ int main(int argc, char* argv[]){
         ns= last.tv_nsec -init.tv_nsec ;
         seconds= last.tv_sec - init.tv_sec ;
     }
-    printf("The seconds elapsed are %d and the nanoseconds are %ld\n",seconds, ns); 
+    printf("For V3omp the seconds elapsed are %u and the nanoseconds are %ld\n",seconds, ns); 
 
     CSCArrayfree(cscArray);
     free(cscArray);
