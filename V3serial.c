@@ -4,9 +4,9 @@
 **/
 
 #include <stdio.h>
-#include "test.c"
 #include <time.h>
 #include <stdint.h>
+#include "tester.c"
 
 
 /**
@@ -97,8 +97,8 @@ int main(int argc, char* argv[]){
     uint32_t* colVector = cscArray->colVector;
     uint32_t M = cscArray->M;
 
-    uint32_t elemsInCol;                                 //Number on nonzero elements in a particular column
-    uint32_t* triangleCount = calloc(M, sizeof(uint32_t));    //Each entry contains the number of triangles in which at least an element of this column belongs to
+    int32_t elemsInCol;                                    //Number on nonzero elements in a particular column
+    uint32_t* triangleCount = calloc(M, sizeof(uint32_t));  //Each entry contains the number of triangles in which at least an element of this column belongs to
     if(triangleCount==NULL){
         printf("Error in main: Couldn't allocate memory for triangleCount");
         exit(-1);
@@ -120,12 +120,12 @@ int main(int argc, char* argv[]){
      * triangleCount[element1] and triangleCount[element2] we would add the same triangle three times instead of one.
     **/
 
-    for(uint32_t i=0; i<M; i++){
+    for(int32_t i=0; i<M; i++){
         elemsInCol = colVector[i+1]- colVector[i];
         //Check for every pair of the column with this double for loop
-        for(uint32_t j=0; j<elemsInCol-1; j++){
+        for(int32_t j=0; j<elemsInCol-1; j++){
             element1 = rowVector[colVector[i]+j];
-            for (uint32_t k=j+1; k<elemsInCol; k++ ){
+            for (int32_t k=j+1; k<elemsInCol; k++ ){
                 element2 = rowVector[colVector[i]+k];          
                 //Check if the third common indice exists
                 if (elementInColumnCheck(rowVector, colVector, element1, element2)>=0){
@@ -154,6 +154,15 @@ int main(int argc, char* argv[]){
 
     CSCArrayfree(cscArray);
     free(cscArray);
+
+    if(checkCorrectness(triangleCount, s)==0){
+        printf("Incorrect calculation of triangles\n");
+        exit(-1);
+    }
+    else{
+        printf("Correct calculation of triangles\n");
+    }
+    
 
     uint32_t totalTriangles=0; //Total number of triangles
 

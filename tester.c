@@ -4,7 +4,7 @@
 **/
 
 #include <stdio.h>
-#include "mmio.c"
+#include "test.c"
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
@@ -32,7 +32,7 @@ typedef struct{
  *      int32_t result: the position on rowVector if there is an element in (wanted row, colNum), -1 otherwise
  **/
 
-int32_t elementInColumnCheck(uint32_t* rowVector,uint32_t* colVector, uint32_t colNum, uint32_t wantedRow){
+int32_t elementInColumnCheck2(uint32_t* rowVector,uint32_t* colVector, uint32_t colNum, uint32_t wantedRow){
     int32_t result=-1;
 
     int32_t left = colVector[colNum];       //first element of the sub-array in which we do our binary search
@@ -303,7 +303,7 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
             for (uint32_t k=j+1; k<elemsInCol; k++ ){
                 element2 = finalRowVector[finalColVector[i]+k];          
                 //Check if the third common indice exists
-                if (elementInColumnCheck(finalRowVector, finalColVector, element1, element2)>=0){
+                if (elementInColumnCheck2(finalRowVector, finalColVector, element1, element2)>=0){
                     vector[i]++;
                 }      
             }
@@ -319,27 +319,14 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
     return vector;
 }
 
-int main(int argc, char* argv[]){
-    
+uint32_t checkCorrectness(uint32_t* vector1, char* filename){
+    uint32_t result = 1;
+
     FILE *stream;       //file pointer to read the given file
-    MM_typecode t;      //the typecode struct
-    
-    if(argc<2){
-        printf("Please pass as argument the .mtx file\n");
-        exit(-1);
-    }  
-
-    char* s=argv[1];
-
-    //Checking if the argument is .mtx file
-    uint32_t nameLength = strlen(s);    //length of the name of the file    
-    if(!((s[nameLength-1]=='x') && (s[nameLength-2]=='t') && (s[nameLength-3]=='m') && (s[nameLength-4]=='.'))){
-        printf("Your argument is not an .mtx file\n");
-        exit(-1);
-    }
+    MM_typecode t;      //the typecode struct  
 
     //Opening The file as shown in the command line
-    stream=fopen(s, "r");        
+    stream=fopen(filename, "r");        
     if(stream==NULL){
         printf("Could not open file, pass another file\n");
         exit(-1);
@@ -347,31 +334,23 @@ int main(int argc, char* argv[]){
 
     mm_read_banner(stream,&t);
 
-    //Checking if the matrix type is ok
-    if (mm_is_sparse(t)==0){
-        printf("The array is not sparce. Please give me another matrix market file\n");
-        exit(-1);
-    }
-    if (mm_is_coordinate(t)==0){
-        printf("The array is not in coordinate format. Please give me another matrix market file\n");
-        exit(-1);
-    }
-    if (mm_is_symmetric(t)==0){
-        printf("The array is not symmetric. Please give me another matrix market file\n");
-        exit(-1);
-    }
-
     COOArray* cooArray = createCOO(stream);
 
     fclose(stream);
 
-    uint32_t* vector = vertexWiseTriangleCounts(cooArray->coo_row, cooArray->coo_col, cooArray->n, cooArray->nz);
+    uint32_t* vector2 = vertexWiseTriangleCounts(cooArray->coo_row, cooArray->coo_col, cooArray->n, cooArray->nz);
+    
     for(uint32_t i=0;i<cooArray->n;++i){
-        printf("vector[%u]=%u\n", i, vector[i]);
+        if(vector1[i]!=vector2[i]){
+            result=0;
+            break;
+        }
     }
 
     free(cooArray->coo_row);
     free(cooArray->coo_col);
     free(cooArray);
-    free(vector);
+    free(vector2);
+
+    return result;
 }

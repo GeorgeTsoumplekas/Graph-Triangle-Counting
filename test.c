@@ -58,9 +58,9 @@ CSCArray* COOtoCSC(FILE* stream){
         ++Mdigits;
     }
 
-    char buffer[Mdigits+1];                     //buffer used to process the data from each line
-    uint32_t* colVector=malloc((M+1)*sizeof(uint32_t));   //index of the elements which start a column of A for the lower triangular part of the matrix
-    uint32_t* rowVector=malloc(nz*sizeof(uint32_t));      //row indices of each non zero element for the lower triangular part of the matrix
+    char buffer[Mdigits+1];                              //buffer used to process the data from each line
+    uint32_t* colVector=malloc((M+1)*sizeof(uint32_t));  //index of the elements which start a column of A for the lower triangular part of the matrix
+    uint32_t* rowVector=malloc(nz*sizeof(uint32_t));     //row indices of each non zero element for the lower triangular part of the matrix
     colVector[0]=0; 
 
     if(colVector==NULL){
@@ -156,11 +156,11 @@ CSCArray* COOtoCSC(FILE* stream){
         colVector[colIndex]=colVector[colIndex-1];
     }  
 
-    uint32_t* finalRowVector = calloc(2*nz,sizeof(uint32_t));     //row indices of each non zero element for the whole matrix
-    uint32_t rowVectorCount=0;                               //shows how many row indices we have added in the finalRowVector
-    uint32_t* finalColVector = calloc((M+1),sizeof(uint32_t));    //index of the elements which start a column of the whole matrix
-    uint32_t colVectorCount=0;                               //number of nonzero elements in a particular column for the whole sparse matrix
-    uint32_t cscInitialColElems;                             //number of nonzero elements in the lower triangular part of the matrix
+    uint32_t* finalRowVector = calloc(2*nz,sizeof(uint32_t));   //row indices of each non zero element for the whole matrix
+    uint32_t rowVectorCount=0;                                  //shows how many row indices we have added in the finalRowVector
+    uint32_t* finalColVector = calloc((M+1),sizeof(uint32_t));  //index of the elements which start a column of the whole matrix
+    uint32_t colVectorCount=0;                                  //number of nonzero elements in a particular column for the whole sparse matrix
+    uint32_t cscInitialColElems;                                //number of nonzero elements in the lower triangular part of the matrix
 
     if(finalRowVector==NULL){
         printf("Error in COOtoCSC: Couldn't allocate memory for finalRowVector");
@@ -209,7 +209,7 @@ CSCArray* COOtoCSC(FILE* stream){
     free(colVector);
     free(rowVector);
     
-    //Creating the CSCAraay to be returned
+    //Creating the CSCArray to be returned
     CSCArray* retVal=malloc(sizeof(CSCArray));
 
     if(retVal==NULL){

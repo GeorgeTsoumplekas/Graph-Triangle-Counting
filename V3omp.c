@@ -3,7 +3,7 @@
 **/
 
 #include <stdio.h>
-#include "test.c"
+#include "tester.c"
 #include <omp.h>
 #include <time.h>
 #include <stdint.h>
@@ -65,15 +65,15 @@ int32_t elementInColumnCheck(uint32_t* rowVector, uint32_t* colVector, uint32_t 
 
 void compute(uint32_t* rowVector, uint32_t* colVector, uint32_t* triangleCount, uint32_t i){
     
-    uint32_t elemsInCol = colVector[i+1]- colVector[i];  //number of nonzero elements in column i
+    int32_t elemsInCol = colVector[i+1]- colVector[i];  //number of nonzero elements in column i
 
     uint32_t element1;   //first common idice we investigate
     uint32_t element2;   //second common indice we investigate
 
     //Check for every pair of the column with this double for loop
-    for(uint32_t j=0; j<elemsInCol-1; j++){
+    for(int32_t j=0; j<elemsInCol-1; j++){
         element1 = rowVector[colVector[i]+j];
-        for (uint32_t k=j+1; k<elemsInCol; k++ ){
+        for (int32_t k=j+1; k<elemsInCol; k++ ){
             element2 = rowVector[colVector[i]+k];            
             //Check if the third common indice exists
             if (elementInColumnCheck(rowVector, colVector, element1, element2)>=0){
@@ -163,7 +163,7 @@ int main(int argc, char* argv[]){
     **/ 
 
     #pragma omp parallel for schedule(dynamic)
-    for(uint32_t i=0; i<M; i++){
+    for(int32_t i=0; i<M; i++){
         compute(rowVector, colVector, triangleCount, i);
     }
 
@@ -186,6 +186,14 @@ int main(int argc, char* argv[]){
 
     CSCArrayfree(cscArray);
     free(cscArray);
+
+    if(checkCorrectness(triangleCount, s)==0){
+        printf("Incorrect calculation of triangles\n");
+        exit(-1);
+    }
+    else{
+        printf("Correct calculation of triangles\n");
+    }
 
     uint32_t totalTriangles=0; //Total number of triangles
 

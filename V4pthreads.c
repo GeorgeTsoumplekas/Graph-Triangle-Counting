@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "test.c"
+#include "tester.c"
 #include <pthread.h>
 #include <time.h>
 
@@ -146,7 +146,7 @@ void* runnerCompute(void* arg){
     uint32_t productNum;                         //the dot product of a particular row with a particular column of the matrix
 
     //Check if there are still columns to be examined
-    while(i<temp->M-1){
+    while(i<temp->M){
         //Mutual exclusion, so that a proper index i is assigned to the each thread and there are no data races over i
         pthread_mutex_lock(&lock);
         colNum=i;
@@ -268,6 +268,13 @@ int main(int argc, char* argv[]){
         seconds= last.tv_sec - init.tv_sec ;
     }
     printf("For V4pthreads the seconds elapsed are %u and the nanoseconds are %ld\n",seconds, ns);
+
+    if(checkCorrectness(trianglesArray, s)==0){
+        printf("Incorrect calculation of triangles\n");
+    }
+    else{
+        printf("Correct calculation of triangles\n");
+    }
 
     uint32_t totalTriangles=0;  //total number of triangles
 
