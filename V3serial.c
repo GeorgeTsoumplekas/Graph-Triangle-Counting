@@ -91,6 +91,8 @@ int main(int argc, char* argv[]){
 
     CSCArray* cscArray = COOtoCSC(stream);  //The sparse array in csc format
     
+    fclose(stream);
+
     uint32_t* rowVector = cscArray->rowVector;
     uint32_t* colVector = cscArray->colVector;
     uint32_t M = cscArray->M;

@@ -133,6 +133,8 @@ int main(int argc, char* argv[]){
     uint32_t* rowVector = cscArray->rowVector;
     uint32_t* colVector = cscArray->colVector;
 
+    fclose(stream);
+
     uint32_t* triangleCount = calloc(M, sizeof(uint32_t));    //Each entry contains the number of triangles in which at least an element of this column belongs to
     if(triangleCount==NULL){
         printf("Error in main: Couldn't allocate memory for triangleCount");
