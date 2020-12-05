@@ -70,7 +70,7 @@ COOArray* createCOO(FILE* stream){
     printf("started converting mtx file to COO\n");
 
     //Aquiring data about the sizes
-    uint32_t M,N,nz;
+    int32_t M,N,nz;
     
     mm_read_mtx_crd_size(stream, &M, &N, &nz);
 
@@ -97,7 +97,7 @@ COOArray* createCOO(FILE* stream){
     }
 
     //Read the row and column indices of each nonzero and store them in rowVector and colVector respectively
-    for(uint32_t i=0; i<nz; i++){ 
+    for(int32_t i=0; i<nz; i++){ 
         fscanf(stream,"%s",buffer);
         rowVector[i]=atoi(buffer);
         fscanf(stream,"%s",buffer);
@@ -156,7 +156,7 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
     }
 
     //Creating the vectors for the upper triangular part of the matrix. The first element of each vector tells us the number of elements of the vector
-    for(uint32_t i=0; i<n; i++){     
+    for(int32_t i=0; i<n; i++){     
         upperVectors[i]=malloc(sizeof(uint32_t));
         if(upperVectors[i]==NULL){
             printf("Error in COOtoCSC: Couldn't allocate memory for upperVectors[%d]", i);
@@ -180,7 +180,7 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
     }
 
     //The loop that will fill out rowVector2, colVector2 and upperVectors
-    for(uint32_t i=0; i<nz; i++){ 
+    for(int32_t i=0; i<nz; i++){ 
 
         rowIndiceRead=coo_row[i]-1;
         colIndiceRead=coo_col[i]-1;
@@ -197,7 +197,7 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
         if(colCheck<colIndiceRead){             //Check if the column indice we got is bigger than the previous column indice we examined
             if(colIndiceRead-colCheck>1){       //Checking if one or more consecutive columns have only elements equal to zero
                 elemsUntilZeroCols = colVector2[colIndex-1] + lowerColElements;
-                for (uint32_t k=0; k<(colIndiceRead-colCheck); k++){
+                for (int32_t k=0; k<(colIndiceRead-colCheck); k++){
                     colVector2[colIndex]=elemsUntilZeroCols;   //For all these all-zero columns put in the respective column array the value of the total elements up until that point
                     colIndex++;
                 }
@@ -252,13 +252,13 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
     }
 
     //The loop that will fill out finalRowVector and finalColVector
-    for(uint32_t i=0; i<n; i++){
+    for(int32_t i=0; i<n; i++){
         
         //Getting the values of the upper triangular half of the matrix
         //Check for nonzero elements in the column
         if(upperVectors[i][0]>1){
             //Add these elements on the final row vector
-            for(uint32_t j=0; j<upperVectors[i][0]-1; j++){
+            for(int32_t j=0; j<upperVectors[i][0]-1; j++){
                 finalRowVector[rowVectorCount] = upperVectors[i][j+1];
                 rowVectorCount ++;
                 colVectorCount ++;
@@ -274,7 +274,7 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
         if(i<n-1){
             cscInitialColElems=colVector2[i+1] - colVector2[i];
             //Add these elements on the final row vector
-            for (uint32_t j=0; j<cscInitialColElems; j++){             
+            for (int32_t j=0; j<cscInitialColElems; j++){             
                 finalRowVector[rowVectorCount] = rowVector2[colVector2[i] +j];
                 rowVectorCount ++;
                 colVectorCount ++;
@@ -284,7 +284,7 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
         colVectorCount=0;
     } 
 
-    uint32_t elemsInCol;                    //Number on nonzero elements in a particular column
+    int32_t elemsInCol;                    //Number on nonzero elements in a particular column
     vector = calloc(n, sizeof(uint32_t));   //Each entry contains the number of triangles in which at least an element of this column belongs to
     if(vector==NULL){
         printf("Error in main: Couldn't allocate memory for vector");
@@ -295,12 +295,12 @@ uint32_t* vertexWiseTriangleCounts(uint32_t *coo_row, uint32_t *coo_col, uint32_
     uint32_t element2;   //Second common indice we investigate
 
     //We implement the same algorithm used in V3serial
-    for(uint32_t i=0; i<n; i++){
+    for(int32_t i=0; i<n; i++){
         elemsInCol = finalColVector[i+1]- finalColVector[i];
         //Check for every pair of the column with this double for loop
-        for(uint32_t j=0; j<elemsInCol-1; j++){
+        for(int32_t j=0; j<elemsInCol-1; j++){
             element1 = finalRowVector[finalColVector[i]+j];
-            for (uint32_t k=j+1; k<elemsInCol; k++ ){
+            for (int32_t k=j+1; k<elemsInCol; k++ ){
                 element2 = finalRowVector[finalColVector[i]+k];          
                 //Check if the third common indice exists
                 if (elementInColumnCheck2(finalRowVector, finalColVector, element1, element2)>=0){

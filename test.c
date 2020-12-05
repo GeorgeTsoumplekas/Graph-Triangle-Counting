@@ -46,7 +46,7 @@ CSCArray* COOtoCSC(FILE* stream){
     printf("Started converting mtx file to CSC\n");
     
     //Aquiring data about the sizes
-    uint32_t M,N,nz;
+    int32_t M,N,nz;
     
     mm_read_mtx_crd_size(stream, &M, &N, &nz);
 
